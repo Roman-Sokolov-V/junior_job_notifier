@@ -1,4 +1,14 @@
-1. Пропонована структура проєкту
+https://www.dataart.team/vacancies?countries=10&level=8&level=2&level=5&skills=363
+https://careers.tieto.com/jobs?options=378&page=1&q=python
+https://www.gen.tech/career
+https://macpaw.com/careers-all?categories=Engineering
+https://megogo.net/ua/jobs#senior_data_scientist_660d0d2bca0000ffad89ec40
+https://careers.uklon.net/vacancies-ua
+https://metinvest.digital/ua/pages/career?
+https://careers.n-ix.com/jobs/?level%5B%5D=Trainee&keyword=
+
+
+4. Пропонована структура проєкту
 junior_job_notifier/
 ├── backend/
 │   ├── manage.py
