@@ -1,14 +1,13 @@
 import re
 import scrapy
 from scrapy.http import Response
-from scrapy_playwright.page import PageMethod
 
 
 class GenTechSpider(scrapy.Spider):
     name = "gen_tech"
 
     def start_requests(self):
-        input_id = '#Development-comp-m9h1cdvh-6'
+        # input_id = '#Development-comp-m9h1cdvh-6'
         yield scrapy.Request(
             "https://www.gen.tech/career",
             meta={
@@ -56,23 +55,23 @@ class GenTechSpider(scrapy.Spider):
         content = await page.content()
         response = response.replace(body=content)
         boxes = response.css('div[role="listitem"].wixui-repeater__item')
-        links = []
+        links_titles = []
 
         for box in boxes:
-            exp_level = " ".join(box.css(".wixui-rich-text__text::text").getall()).strip()
-            if re.search(r"junior",exp_level, re.IGNORECASE):
+            title = " ".join(box.css(".wixui-rich-text__text::text").getall()).strip()
+            if re.search(r"junior", title, re.IGNORECASE):
                 link = box.css("a::attr(href)").get()
                 if link:
-                    links.append(link)
+                    links_titles.append((link, title))
 
         # check detail pages
-        if not links:
+        if not links_titles:
             self.logger.info("Links not found...")
-        for link in links:
+        for link_title in links_titles:
             yield scrapy.Request(
-                url=link,
+                url=link_title[0],
                 callback=self.parse_detail_page,
-                meta={"source_url": link}
+                meta={"title": link_title[1]}
             )
 
         # Pagination
@@ -86,9 +85,8 @@ class GenTechSpider(scrapy.Spider):
             await page.click(next_button_selector)
 
             # Чекаємо на оновлення контенту
-            # (наприклад, чекаємо, поки стара перша вакансія зникне або з'явиться нова)
             await page.wait_for_load_state("networkidle")
-            await page.wait_for_timeout(2000)  # Wix потребує часу на рендер React-компонентів
+            await page.wait_for_timeout(2000)
 
             # Отримуємо оновлений контент сторінки
             content = await page.content()
@@ -105,7 +103,7 @@ class GenTechSpider(scrapy.Spider):
     def parse_detail_page(self, response: Response):
         if text:= " ".join(response.css(".wixui-box p::text").getall()).strip():
             if re.search(r"(python|пайтон)", text, re.IGNORECASE):
-                yield {"link": response.meta["source_url"]}
+                yield {"title": response.meta["title"], "url": response.url}
             else:
                 self.logger.info("not python vacancy")
         else:
