@@ -1,112 +1,134 @@
-https://www.dataart.team/vacancies?countries=10&level=8&level=2&level=5&skills=363
-https://careers.tieto.com/jobs?options=378&page=1&q=python
-https://www.gen.tech/career
-https://macpaw.com/careers-all?categories=Engineering
-https://megogo.net/ua/jobs#senior_data_scientist_660d0d2bca0000ffad89ec40
-https://careers.uklon.net/vacancies-ua
-https://metinvest.digital/ua/pages/career?
-https://careers.n-ix.com/jobs/?level%5B%5D=Trainee&keyword=
+# 🕵️‍♂️ Vacancy Auto Scraper
 
+A robust, production-ready asynchronous job vacancy scraper built with **Scrapy**. It automatically tracks, filters, and collects job openings, stores the structured data in a **PostgreSQL (Supabase)** database, and sends instant automated notifications via a **Telegram bot**.
 
-4. Пропонована структура проєкту
-junior_job_notifier/
-├── backend/
-│   ├── manage.py
-│   ├── backend/              # Django settings
-│   │   ├── __init__.py
-│   │   ├── settings.py
-│   │   ├── urls.py
-│   │   └── wsgi.py
-│   ├── jobs/                 # основний додаток
-│   │   ├── __init__.py
-│   │   ├── models.py         # Vacancy, Company
-│   │   ├── serializers.py    # якщо DRF
-│   │   ├── views.py
-│   │   ├── tasks.py          # APScheduler / Celery tasks
-│   │   ├── scraper.py        # адаптери для сайтів
-│   │   └── telegram_bot.py   # відправка сповіщень
-├── requirements.txt
-├── README.md
-└── .env
-2. Основні моделі (models.py)
-from django.db import models
+The entire workflow is fully automated using **GitHub Actions**, powered by **`uv`** for blazing-fast dependency management and smart caching.
 
-class Company(models.Model):
-    name = models.CharField(max_length=100)
-    website = models.URLField()
-    jobs_url = models.URLField()  # де публікуються вакансії
+---
 
-class Vacancy(models.Model):
-    title = models.CharField(max_length=200)
-    company = models.ForeignKey(Company, on_delete=models.CASCADE)
-    url = models.URLField(unique=True)
-    published_at = models.DateField()
-    description = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    notified = models.BooleanField(default=False)  # чи відправлено сповіщення
-3. Scraper (scraper.py)
-Для кожної компанії пишемо адаптер:
-import requests
-from bs4 import BeautifulSoup
-from .models import Vacancy, Company
-from datetime import datetime
+### 📢 Full Disclosure & Motivation
+**I am actively looking for a job as a Python Backend Developer.** This project was born out of a personal need to automate and optimize my own job hunt. I am building and maintaining this system for myself, and I will continuously refine it until I land my next role. *Ironically, I sincerely hope to find a great job way before I manage to implement every complex feature planned for this tool!* 😄
 
-def fetch_jobs_for_company(company: Company):
-    response = requests.get(company.jobs_url)
-    soup = BeautifulSoup(response.text, "html.parser")
-    
-    # Приклад для конкретного сайту
-    for job in soup.select(".job-card"):
-        url = job.select_one("a")["href"]
-        title = job.select_one(".job-title").text.strip()
-        date_str = job.select_one(".date").text.strip()
-        published_at = datetime.strptime(date_str, "%d.%m.%Y").date()
+---
 
-        Vacancy.objects.get_or_create(
-            url=url,
-            defaults={"title": title, "company": company, "published_at": published_at}
-        )
-4. Планувальник (tasks.py)
-APScheduler (для початку, Celery можна пізніше):
-from apscheduler.schedulers.background import BackgroundScheduler
-from .scraper import fetch_jobs_for_company
-from .models import Company
+## 🚀 Features
 
-scheduler = BackgroundScheduler()
+- **Automated Scraping:** Scheduled or manual runs using GitHub Actions.
+- **Asynchronous Architecture:** Built on Scrapy for high-performance concurrent requests.
+- **Relational Storage & Deduplication:** Integrated with PostgreSQL (hosted on Supabase) to store job descriptions and filter out duplicate entries, ensuring users only receive unique, newly posted vacancies.
+- **Instant Alerts:** Telegram bot integration for real-time notifications about new job opportunities.
+- **Modern Python Tooling:** Managed entirely via `uv` for deterministic, lightning-fast dependency resolution and isolated virtual environments.
+- **Cloud-Native CI/CD:** Fully automated daily execution utilizing GitHub Actions with custom caching layer.
 
-def scrape_all_companies():
-    for company in Company.objects.all():
-        fetch_jobs_for_company(company)
+---
 
-scheduler.add_job(scrape_all_companies, "interval", hours=6)
-scheduler.start()
-5. Telegram сповіщення (telegram_bot.py)
-import telegram
-from .models import Vacancy
-from django.conf import settings
+## 🛠️ Project Architecture
 
-bot = telegram.Bot(token=settings.TELEGRAM_TOKEN)
+```angular2html
+├── .github/
+│   └── workflows/
+│       └── scrape.yml        # GitHub Actions automation workflow
+├── scraper/                  # Core Scrapy project directory
+│   ├── spiders/              # Job vacancy spiders
+│   ├── items.py              # Scrapy item data models
+│   ├── pipelines.py          # Database & clean-up pipelines
+│   └── settings.py           # Scrapy configuration settings
+├── .python-version           # Explicit Python version pinned by uv
+├── pyproject.toml            # Modern project metadata & dependencies declaration
+├── run.py                    # Main script orchestration entrypoint
+└── uv.lock                   # Cryptographically locked dependency graph
+```
 
-def notify_new_vacancies():
-    for vac in Vacancy.objects.filter(notified=False):
-        msg = f"{vac.title} at {vac.company.name}\n{vac.url}"
-        bot.send_message(chat_id=settings.TELEGRAM_CHAT_ID, text=msg)
-        vac.notified = True
-        vac.save()
-6. CLI / Management command
-Django підтримує custom commands:
-python manage.py scrape_jobs
-python manage.py notify_vacancies
-# jobs/management/commands/scrape_jobs.py
-from django.core.management.base import BaseCommand
-from jobs.tasks import scrape_all_companies
+---
 
-class Command(BaseCommand):
-    help = "Scrape job vacancies"
+## 🔧 Local Setup & Installation
 
-    def handle(self, *args, **options):
-        scrape_all_companies()
-        self.stdout.write(self.style.SUCCESS("Scraping finished"))
-7. Deployment (безкоштовно)
-Render Free Tier або Railway Free Tier — підтримують Django + PostgreSQL.
-Можна хостити Telegram бота на тому ж сервері.
+This project utilizes [uv](https://github.com/astral-sh/uv), an extremely fast Python package and project manager written in Rust.
+
+### 1. Prerequisites
+
+Ensure you have `uv` installed on your machine. If not, install it via:
+#### On Linux/macOS
+```bash
+curl -LsSf [https://astral.sh/uv/install.sh](https://astral.sh/uv/install.sh) | sh
+```
+
+### 2. Clone the Repository
+
+```bash
+git clone [https://github.com/yourusername/vacancy-auto-scraper.git](https://github.com/yourusername/vacancy-auto-scraper.git)
+cd vacancy-auto-scraper
+```
+
+### 3. Install Dependencies & Setup Environment
+
+Run the following command to automatically discover the required Python version, create a localized .venv, and synchronize all locked dependencies:
+```bash
+uv sync
+```
+### 4. Configuration
+
+Create a .env file in the root directory (or export them in your shell session) and populate it with your credentials:
+
+```angular2html
+TELEGRAM_BOT_TOKEN="your_telegram_bot_token_here"
+TELEGRAM_CHAT_ID="your_telegram_chat_id_or_channel_id"
+DATABASE_URL="postgresql://user:password@your-supabase-host:5432/postgres"
+```
+### Running the Scraper Locally
+
+To execute the main entrypoint script inside the isolated virtual environment managed by uv:
+
+```bash
+uv run run.py
+```
+🤖 GitHub Actions CI/CD Automation
+
+The project includes a pre-configured GitHub Actions workflow that executes the scraping routine daily at 09:00 UTC (12:00 EET / 11:00 EEST), or anytime manually.
+Operationalizing in GitHub:
+
+Push Everything: Ensure pyproject.toml and uv.lock are committed to your GitHub repository so that the pipeline can mirror your exact local environment.
+
+Configure Encrypted Secrets:
+
+Go to your repository on GitHub: Settings ➡️ Secrets and variables ➡️ Actions.
+
+Click New repository secret and add the following keys:
+
+    TELEGRAM_BOT_TOKEN
+
+    TELEGRAM_CHAT_ID
+
+    DATABASE_URL
+
+Triggering: Check the Actions tab on GitHub to see execution logs, test manually via Run workflow, or leave it to run autonomously according to the cron schedule.  
+
+---
+
+### 📅 Roadmap & Upcoming Features (To-Do)
+
+We are actively working on expanding and improving the scraper. The following milestones are planned for future releases:
+
+1. **🌐 Multi-Platform Expansion:** Develop and deploy additional Scrapy spiders to aggregate data from a wider range of regional and global job boards, maximizing vacancy coverage.
+
+2. **🤖 AI-Powered Job Classification:** Integrate LLM processing to accurately classify job seniority (e.g., distinguishing *Junior*, *Middle*, and *Senior* roles) and tech stacks, bypassing messy or inaccurate tags provided by job boards.
+
+3. **📝 Smart Vacancy Summarization:** Implement automated text summarization using OpenAI/Anthropic APIs to condense long job descriptions into concise, bulleted core requirements (key skills, salary, tech stack) directly within the Telegram alert.
+
+4. **🎯 Semantic Resume Match Score:** Develop a custom matching system that compares scraped vacancy descriptions against a user's CV/Resume using vector embeddings, calculating a "Match Score (%)" to prioritize the best opportunities.
+
+---
+
+### 📝 License
+
+This project is open-source and available under the MIT License.
+
+---
+
+### 📬 Contact & Connect
+
+If you have any questions, suggestions, or would like to collaborate on this project, feel free to reach out:
+
+- **Telegram:** [@Roman_Sokolo_v](https://t.me/Roman_Sokolo_v)
+- **LinkedIn:** [roman-sokolov](https://www.linkedin.com/in/roman-sokolov-a7614330b/)
+- **Email:** [roman.sokolov.developer@gmail.com](roman.sokolov.developer@gmail.com)
