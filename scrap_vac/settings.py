@@ -58,9 +58,10 @@ DOWNLOAD_DELAY = 1
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    "scrap_vac.pipelines.ScrapVacPipeline": 300,
-#}
+ITEM_PIPELINES = {
+    'scrap_vac.pipelines.PostgresPipeline': 300,
+    #'scrap_vac.pipelines.TelegramPipeline': 400,
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
@@ -95,3 +96,4 @@ DOWNLOAD_HANDLERS = {
 
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 #####################################################################
+DATABASE_URL = "postgresql://postgres.jmyffmxdutqdwreywjmt:KY0MgiOQcN4IoDWG@aws-1-eu-north-1.pooler.supabase.com:5432/postgres"
