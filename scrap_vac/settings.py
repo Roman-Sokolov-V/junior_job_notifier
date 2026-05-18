@@ -6,6 +6,7 @@
 #     https://docs.scrapy.org/en/latest/topics/settings.html
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+import os
 
 BOT_NAME = "scrap_vac"
 
@@ -60,7 +61,7 @@ DOWNLOAD_DELAY = 1
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
     'scrap_vac.pipelines.PostgresPipeline': 300,
-    #'scrap_vac.pipelines.TelegramPipeline': 400,
+    'scrap_vac.pipelines.TelegramPipeline': 400,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -96,4 +97,6 @@ DOWNLOAD_HANDLERS = {
 
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 #####################################################################
-DATABASE_URL = "postgresql://postgres.jmyffmxdutqdwreywjmt:KY0MgiOQcN4IoDWG@aws-1-eu-north-1.pooler.supabase.com:5432/postgres"
+DATABASE_URL = os.getenv("DATABASE_URL")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
