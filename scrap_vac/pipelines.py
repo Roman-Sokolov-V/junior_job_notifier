@@ -92,7 +92,7 @@ class TelegramPipeline:
     @classmethod
     def from_crawler(cls, crawler):
         # Витягуємо налаштування з settings.py
-        token = crawler.settings.get('TELEGRAM_TOKEN')
+        token = crawler.settings.get('TELEGRAM_BOT_TOKEN')
         chat_id = crawler.settings.get('TELEGRAM_CHAT_ID')
 
         if not token or not chat_id:
@@ -109,7 +109,7 @@ class TelegramPipeline:
         payload = {
             "chat_id": self.chat_id,
             "text": message,
-            "parse_mode": "Markdown"  # Щоб посилання було красивим
+            "parse_mode": "Markdown"
         }
 
         try:
