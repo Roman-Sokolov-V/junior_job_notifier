@@ -1,0 +1,167 @@
+import argparse
+import csv
+import json
+from dataclasses import dataclass
+from pathlib import Path
+
+import yaml
+from sentence_transformers import SentenceTransformer, util
+
+
+MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
+
+@dataclass
+class Vacancy:
+    source: str
+    title: str
+    url: str
+    listing_context: str
+    description_text: str
+
+    @property
+    def full_text(self) -> str:
+        parts = [self.title, self.listing_context, self.description_text]
+        return "\n".join(part for part in parts if part)
+
+
+def normalize_text(value: str) -> str:
+    return " ".join((value or "").split()).strip().lower()
+
+
+def load_profile(path: Path) -> dict:
+    with path.open("r", encoding="utf-8") as fh:
+        profile = yaml.safe_load(fh) or {}
+    return profile
+
+
+def load_vacancies_from_csv(paths: list[Path]) -> list[Vacancy]:
+    vacancies: list[Vacancy] = []
+    seen_urls: set[str] = set()
+
+    for path in paths:
+        with path.open("r", encoding="utf-8-sig", newline="") as fh:
+            reader = csv.DictReader(fh)
+            for row in reader:
+                url = (row.get("url") or "").strip()
+                if not url or url in seen_urls:
+                    continue
+                seen_urls.add(url)
+                vacancies.append(
+                    Vacancy(
+                        source=(row.get("source") or path.stem).strip(),
+                        title=(row.get("title") or "").strip(),
+                        url=url,
+                        listing_context=(row.get("listing_context") or "").strip(),
+                        description_text=(row.get("description_text") or "").strip(),
+                    )
+                )
+    return vacancies
+
+
+def keyword_filter(vacancy: Vacancy, include: list[str], exclude: list[str], min_coverage: float) -> tuple[bool, float]:
+    text = normalize_text(vacancy.full_text)
+    include_norm = [normalize_text(word) for word in include if word.strip()]
+    exclude_norm = [normalize_text(word) for word in exclude if word.strip()]
+
+    if exclude_norm and any(word in text for word in exclude_norm):
+        return False, 0.0
+
+    if not include_norm:
+        return True, 1.0
+
+    hits = sum(1 for word in include_norm if word in text)
+    coverage = hits / len(include_norm)
+    return coverage >= min_coverage, coverage
+
+
+def rank_vacancies(profile: dict, vacancies: list[Vacancy]) -> list[dict]:
+    include_keywords = profile.get("include_keywords", [])
+    exclude_keywords = profile.get("exclude_keywords", [])
+    min_keyword_coverage = float(profile.get("min_keyword_coverage", 0.2))
+    min_semantic_score = float(profile.get("min_semantic_score", 0.42))
+    top_k = int(profile.get("top_k", 20))
+    query_text = (profile.get("query_text") or "").strip()
+
+    if not query_text:
+        raise ValueError("profile.yaml must include non-empty 'query_text'")
+
+    prefiltered: list[tuple[Vacancy, float]] = []
+    for vacancy in vacancies:
+        ok, coverage = keyword_filter(vacancy, include_keywords, exclude_keywords, min_keyword_coverage)
+        if ok:
+            prefiltered.append((vacancy, coverage))
+
+    if not prefiltered:
+        return []
+
+    model = SentenceTransformer(MODEL_NAME)
+    query_embedding = model.encode(query_text, convert_to_tensor=True)
+    vacancy_embeddings = model.encode([v.full_text for v, _ in prefiltered], convert_to_tensor=True)
+    sims = util.cos_sim(query_embedding, vacancy_embeddings)[0]
+
+    scored: list[dict] = []
+    for idx, (vacancy, coverage) in enumerate(prefiltered):
+        semantic_score = float(sims[idx])
+        if semantic_score < min_semantic_score:
+            continue
+        combined_score = 0.7 * semantic_score + 0.3 * coverage
+        scored.append(
+            {
+                "source": vacancy.source,
+                "title": vacancy.title,
+                "url": vacancy.url,
+                "keyword_coverage": round(coverage, 4),
+                "semantic_score": round(semantic_score, 4),
+                "combined_score": round(combined_score, 4),
+            }
+        )
+
+    scored.sort(key=lambda row: row["combined_score"], reverse=True)
+    return scored[:top_k]
+
+
+def write_results_csv(path: Path, rows: list[dict]) -> None:
+    fields = ["source", "title", "url", "keyword_coverage", "semantic_score", "combined_score"]
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Local multilingual AI matcher for scraped vacancies.")
+    parser.add_argument("--profile", default="profile.yaml", help="Path to YAML profile with search preferences.")
+    parser.add_argument(
+        "--inputs",
+        nargs="+",
+        default=["breezy_ai.csv", "gen_tech_ai.csv", "tieto_ai.csv"],
+        help="CSV files generated by AI spiders.",
+    )
+    parser.add_argument("--out", default="matches.csv", help="Output CSV with matched vacancies.")
+    args = parser.parse_args()
+
+    profile_path = Path(args.profile)
+    input_paths = [Path(x) for x in args.inputs if Path(x).exists()]
+
+    if not input_paths:
+        raise FileNotFoundError("No input CSV files found. Run AI spiders first.")
+
+    profile = load_profile(profile_path)
+    vacancies = load_vacancies_from_csv(input_paths)
+    if not vacancies:
+        raise ValueError("No vacancies loaded from input CSV files.")
+
+    ranked = rank_vacancies(profile, vacancies)
+    write_results_csv(Path(args.out), ranked)
+
+    print(f"Loaded vacancies: {len(vacancies)}")
+    print(f"Matched vacancies: {len(ranked)}")
+    print(f"Saved to: {args.out}")
+    print("Top results preview:")
+    print(json.dumps(ranked[:5], ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()
+

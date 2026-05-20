@@ -4,83 +4,135 @@
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 
 
-# useful for handling different item types with a single interface
-from itemadapter import ItemAdapter
+import hashlib
+
 import psycopg2
 from scrapy.exceptions import DropItem
 import requests
 from scrapy.exceptions import NotConfigured
 
 
-# class ScrapVacPipeline:
-#     def process_item(self, item, spider):
-#
-#         return item
-
-
 class PostgresPipeline:
+    """Classic mode: збереження лише url + title (оригінальна схема)."""
+
     def __init__(self, db_url):
         self.db_url = db_url
 
     @classmethod
     def from_crawler(cls, crawler):
-        # цей метод запускається першим
-        # Отримуємо URL бази з settings.py або env
-        return cls(
-            db_url=crawler.settings.get('DATABASE_URL')
-        )  # створюєм екземпляр класу з db_url = settings.get('DATABASE_URL')
+        return cls(db_url=crawler.settings.get("DATABASE_URL"))
 
     def open_spider(self, spider):
-        # цей метод запускається другим
-        # Підключаємось при старті
         self.conn = psycopg2.connect(self.db_url)
         self.cur = self.conn.cursor()
-        # Створюємо таблицю, якщо її нема
         self.cur.execute("""
                          CREATE TABLE IF NOT EXISTS vacancies (
-                             id SERIAL PRIMARY KEY
-                             , url TEXT NOT NULL
-                             , title TEXT NOT NULL
-                             , added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                             , UNIQUE(url, title)
+                             id SERIAL PRIMARY KEY,
+                             url TEXT NOT NULL,
+                             title TEXT NOT NULL,
+                             added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                             UNIQUE(url, title)
                          )
                          """)
-
         self.conn.commit()
 
     def process_item(self, item, spider):
-        # Спробуємо вставити. Якщо така пара url+title є — нічого не робимо.
-        self.cur.execute("""
-                         INSERT INTO vacancies (url, title)
-                         VALUES (%s, %s) ON CONFLICT (url, title) DO NOTHING
-                         """, (item['url'], item['title']))
-
+        self.cur.execute(
+            """
+            INSERT INTO vacancies (url, title)
+            VALUES (%s, %s) ON CONFLICT (url, title) DO NOTHING
+            """,
+            (item["url"], item["title"]),
+        )
         self.conn.commit()
 
-        # Якщо rowcount == 1, значить рядок був реально доданий (він новий)
         if self.cur.rowcount == 1:
-            item['is_new'] = True
+            item["is_new"] = True
             return item
-        else:
-            raise DropItem(f"URL+Title already exists in db: {item}")
+        raise DropItem(f"URL+Title already exists in db: {item}")
 
     def close_spider(self, spider):
-        # Закриваємо курсор, тільки якщо він взагалі був створений
-        if hasattr(self, 'cur') and self.cur:
+        if hasattr(self, "cur") and self.cur:
             try:
                 self.cur.close()
             except Exception:
                 pass
-
-        # Закриваємо конект, якщо він існує
-        if hasattr(self, 'conn') and self.conn:
+        if hasattr(self, "conn") and self.conn:
             try:
                 self.conn.close()
             except Exception:
                 pass
 
 
+class PostgresPipelineAI:
+    """AI mode: url, title + поля для матчингу (source, listing_context, description_text, content_hash)."""
 
+    def __init__(self, db_url):
+        self.db_url = db_url
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(db_url=crawler.settings.get("DATABASE_URL"))
+
+    def open_spider(self, spider):
+        self.conn = psycopg2.connect(self.db_url)
+        self.cur = self.conn.cursor()
+        # Базова таблиця — як у класичному режимі; додаткові колонки лише для AI.
+        self.cur.execute("""
+                         CREATE TABLE IF NOT EXISTS vacancies (
+                             id SERIAL PRIMARY KEY,
+                             url TEXT NOT NULL,
+                             title TEXT NOT NULL,
+                             added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                             UNIQUE(url, title)
+                         )
+                         """)
+        self.cur.execute("ALTER TABLE vacancies ADD COLUMN IF NOT EXISTS source TEXT")
+        self.cur.execute("ALTER TABLE vacancies ADD COLUMN IF NOT EXISTS listing_context TEXT")
+        self.cur.execute("ALTER TABLE vacancies ADD COLUMN IF NOT EXISTS description_text TEXT")
+        self.cur.execute("ALTER TABLE vacancies ADD COLUMN IF NOT EXISTS content_hash TEXT")
+        self.conn.commit()
+
+    def process_item(self, item, spider):
+        description_text = item.get("description_text", "") or ""
+        content_hash = (
+            hashlib.md5(description_text.encode("utf-8")).hexdigest()
+            if description_text
+            else None
+        )
+
+        self.cur.execute(
+            """
+            INSERT INTO vacancies (url, title, source, listing_context, description_text, content_hash)
+            VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (url, title) DO NOTHING
+            """,
+            (
+                item["url"],
+                item["title"],
+                item.get("source"),
+                item.get("listing_context"),
+                description_text or None,
+                content_hash,
+            ),
+        )
+        self.conn.commit()
+
+        if self.cur.rowcount == 1:
+            item["is_new"] = True
+            return item
+        raise DropItem(f"URL+Title already exists in db: {item}")
+
+    def close_spider(self, spider):
+        if hasattr(self, "cur") and self.cur:
+            try:
+                self.cur.close()
+            except Exception:
+                pass
+        if hasattr(self, "conn") and self.conn:
+            try:
+                self.conn.close()
+            except Exception:
+                pass
 
 
 class TelegramPipeline:
@@ -91,9 +143,8 @@ class TelegramPipeline:
 
     @classmethod
     def from_crawler(cls, crawler):
-        # Витягуємо налаштування з settings.py
-        token = crawler.settings.get('TELEGRAM_BOT_TOKEN')
-        chat_id = crawler.settings.get('TELEGRAM_CHAT_ID')
+        token = crawler.settings.get("TELEGRAM_BOT_TOKEN")
+        chat_id = crawler.settings.get("TELEGRAM_CHAT_ID")
 
         if not token or not chat_id:
             raise NotConfigured("Telegram Token or Chat ID not found!")
@@ -101,15 +152,16 @@ class TelegramPipeline:
         return cls(token, chat_id)
 
     def process_item(self, item, spider):
-        # Відправляємо повідомлення
-        message = f"🌟 *Нова вакансія!*\n\n" \
-                  f"📋 *Назва:* {item['title']}\n" \
-                  f"🔗 [Переглянути]({item['url']})"
+        message = (
+            f"🌟 *Нова вакансія!*\n\n"
+            f"📋 *Назва:* {item['title']}\n"
+            f"🔗 [Переглянути]({item['url']})"
+        )
 
         payload = {
             "chat_id": self.chat_id,
             "text": message,
-            "parse_mode": "Markdown"
+            "parse_mode": "Markdown",
         }
 
         try:
