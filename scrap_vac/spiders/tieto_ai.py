@@ -11,7 +11,7 @@ class TietoAISpider(scrapy.Spider):
     name = "tieto_ai"
     allowed_domains = ["careers.tieto.com"]
     start_urls = ["https://careers.tieto.com/jobs?options=193%2C403"]
-    impossible = {"middle", "senior"} # todo remove in final version
+   # impossible = {"middle", "senior"} # todo remove in final version
 
     def start_requests(self):
         if not self.crawler.settings.getbool("AI_MODE"):
@@ -22,20 +22,20 @@ class TietoAISpider(scrapy.Spider):
     def parse(self, response: Response):
         for box in response.css(".attrax-vacancy-tile"):
             title = self._normalize_ws(box.css("a::text").get(""))
-            if set(title.lower().split()).intersection(self.impossible): # todo remove in final version
-                self.logger.info("not junior vacancy") # todo remove in final version
-            else: # todo remove in final version
-                self.logger.info("maybe junior vacancy")
-                listing_context = self._normalize_ws(" ".join(box.css("p::text, span::text").getall()))
-                href = box.css("a::attr(href)").get()
-                if not href:
-                    continue
-                link = response.urljoin(href)
-                yield scrapy.Request(
-                    link,
-                    callback=self.parse_details,
-                    meta={"title": title, "listing_context": listing_context},
-                )
+            # if set(title.lower().split()).intersection(self.impossible): # todo remove in final version
+            #     self.logger.info("not junior vacancy") # todo remove in final version
+            # else: # todo remove in final version
+            #self.logger.info("maybe junior vacancy")
+            listing_context = self._normalize_ws(" ".join(box.css("p::text, span::text").getall()))
+            href = box.css("a::attr(href)").get()
+            if not href:
+                continue
+            link = response.urljoin(href)
+            yield scrapy.Request(
+                link,
+                callback=self.parse_details,
+                meta={"title": title, "listing_context": listing_context},
+            )
 
         next_exists = response.css('a[aria-label="Next pagination page"]')
         if next_exists:

@@ -65,7 +65,7 @@ AI_MODE = os.getenv("AI_MODE", "0") == "1"
 if not AI_MODE:
     ITEM_PIPELINES = {
         "scrap_vac.pipelines.PostgresPipeline": 300,
-        "scrap_vac.pipelines.TelegramPipeline": 400,
+        #"scrap_vac.pipelines.TelegramPipeline": 400,
     }
 else:
     # AI-режим: повне збереження вакансій для матчингу; Telegram після matcher (опційно).

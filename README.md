@@ -75,6 +75,43 @@ TELEGRAM_BOT_TOKEN="your_telegram_bot_token_here"
 TELEGRAM_CHAT_ID="your_telegram_chat_id_or_channel_id"
 DATABASE_URL="postgresql://user:password@your-supabase-host:5432/postgres"
 ```
+
+### Database schema (SQLAlchemy + Alembic)
+
+Tables and constraints are defined as ORM models under `scrap_vac/db/` and applied with Alembic (no hand-written SQL in pipelines).
+
+With `DATABASE_URL` set in `.env` (or exported in the shell):
+
+```bash
+uv run alembic upgrade head
+```
+
+Run this once on a new database, and after you pull new migrations. Scrapy pipelines only insert data; they do not create tables.
+
+### Docker (PostgreSQL + app)
+
+Two services: **`db`** (Postgres 16) and **`app`** (this project). On start, the app runs **`alembic upgrade head`** then your command (default: `uv run run.py`).
+
+```bash
+# Optional: set AI_MODE / Telegram in a file and pass it to Compose (see .env.docker.example)
+cp .env.docker.example .env.docker
+docker compose --env-file .env.docker build   # first build is slow (torch + Playwright)
+docker compose --env-file .env.docker up
+```
+
+Or put `AI_MODE`, `TELEGRAM_*` in a `.env` file next to `docker-compose.yml` (Compose reads it for `${VAR}` substitution).
+
+`DATABASE_URL` is set inside `docker-compose.yml` for the app service. Override only if you use another DB.
+
+One-off commands:
+
+```bash
+docker compose run --rm app uv run match_new_batch.py
+docker compose run --rm app uv run scrapy crawl breezy_ai -O /tmp/breezy.csv
+```
+
+**Note:** the image includes Chromium for **scrapy-playwright**. It is large by design. For production you can later split “scraper” and “matcher” images or use a slimmer base if you drop Playwright from a service.
+
 ### Running the Scraper Locally
 
 To execute the main entrypoint script inside the isolated virtual environment managed by uv:

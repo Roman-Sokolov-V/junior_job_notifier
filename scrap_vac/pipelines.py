@@ -6,16 +6,18 @@
 
 import hashlib
 
-import psycopg2
-from scrapy.exceptions import DropItem
 import requests
+from scrapy.exceptions import DropItem
 from scrapy.exceptions import NotConfigured
+from sqlalchemy.dialects.postgresql import insert
+from scrap_vac.db.models import Vacancy
+from scrap_vac.db.session import create_engine_from_url, create_session_factory
 
 
 class PostgresPipeline:
-    """Classic mode: збереження лише url + title (оригінальна схема)."""
+    """Classic mode: зберігає лише url + title (ORM + upsert)."""
 
-    def __init__(self, db_url):
+    def __init__(self, db_url: str | None):
         self.db_url = db_url
 
     @classmethod
@@ -23,51 +25,35 @@ class PostgresPipeline:
         return cls(db_url=crawler.settings.get("DATABASE_URL"))
 
     def open_spider(self, spider):
-        self.conn = psycopg2.connect(self.db_url)
-        self.cur = self.conn.cursor()
-        self.cur.execute("""
-                         CREATE TABLE IF NOT EXISTS vacancies (
-                             id SERIAL PRIMARY KEY,
-                             url TEXT NOT NULL,
-                             title TEXT NOT NULL,
-                             added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                             UNIQUE(url, title)
-                         )
-                         """)
-        self.conn.commit()
+        if not self.db_url:
+            raise NotConfigured("DATABASE_URL is not set.")
+        self.engine = create_engine_from_url(self.db_url)
+        self.Session = create_session_factory(self.engine)
 
     def process_item(self, item, spider):
-        self.cur.execute(
-            """
-            INSERT INTO vacancies (url, title)
-            VALUES (%s, %s) ON CONFLICT (url, title) DO NOTHING
-            """,
-            (item["url"], item["title"]),
+        stmt = (
+            insert(Vacancy)
+            .values(url=item["url"], title=item["title"])
+            .on_conflict_do_nothing(constraint="uq_vacancies_url_title")
         )
-        self.conn.commit()
+        with self.Session() as session:
+            with session.begin():
+                result = session.execute(stmt)
 
-        if self.cur.rowcount == 1:
+        if result.rowcount == 1:
             item["is_new"] = True
             return item
         raise DropItem(f"URL+Title already exists in db: {item}")
 
     def close_spider(self, spider):
-        if hasattr(self, "cur") and self.cur:
-            try:
-                self.cur.close()
-            except Exception:
-                pass
-        if hasattr(self, "conn") and self.conn:
-            try:
-                self.conn.close()
-            except Exception:
-                pass
+        if hasattr(self, "engine") and self.engine:
+            self.engine.dispose()
 
 
 class PostgresPipelineAI:
-    """AI mode: url, title + поля для матчингу (source, listing_context, description_text, content_hash)."""
+    """AI mode: повні поля вакансії для подальшого матчингу."""
 
-    def __init__(self, db_url):
+    def __init__(self, db_url: str | None):
         self.db_url = db_url
 
     @classmethod
@@ -75,23 +61,10 @@ class PostgresPipelineAI:
         return cls(db_url=crawler.settings.get("DATABASE_URL"))
 
     def open_spider(self, spider):
-        self.conn = psycopg2.connect(self.db_url)
-        self.cur = self.conn.cursor()
-        # Базова таблиця — як у класичному режимі; додаткові колонки лише для AI.
-        self.cur.execute("""
-                         CREATE TABLE IF NOT EXISTS vacancies (
-                             id SERIAL PRIMARY KEY,
-                             url TEXT NOT NULL,
-                             title TEXT NOT NULL,
-                             added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                             UNIQUE(url, title)
-                         )
-                         """)
-        self.cur.execute("ALTER TABLE vacancies ADD COLUMN IF NOT EXISTS source TEXT")
-        self.cur.execute("ALTER TABLE vacancies ADD COLUMN IF NOT EXISTS listing_context TEXT")
-        self.cur.execute("ALTER TABLE vacancies ADD COLUMN IF NOT EXISTS description_text TEXT")
-        self.cur.execute("ALTER TABLE vacancies ADD COLUMN IF NOT EXISTS content_hash TEXT")
-        self.conn.commit()
+        if not self.db_url:
+            raise NotConfigured("DATABASE_URL is not set.")
+        self.engine = create_engine_from_url(self.db_url)
+        self.Session = create_session_factory(self.engine)
 
     def process_item(self, item, spider):
         description_text = item.get("description_text", "") or ""
@@ -101,38 +74,31 @@ class PostgresPipelineAI:
             else None
         )
 
-        self.cur.execute(
-            """
-            INSERT INTO vacancies (url, title, source, listing_context, description_text, content_hash)
-            VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (url, title) DO NOTHING
-            """,
-            (
-                item["url"],
-                item["title"],
-                item.get("source"),
-                item.get("listing_context"),
-                description_text or None,
-                content_hash,
-            ),
+        stmt = (
+            insert(Vacancy)
+            .values(
+                url=item["url"],
+                title=item["title"],
+                source=item.get("source"),
+                listing_context=item.get("listing_context"),
+                description_text=description_text or None,
+                content_hash=content_hash,
+            )
+            .on_conflict_do_nothing(constraint="uq_vacancies_url_title")
         )
-        self.conn.commit()
+        with self.Session() as session:
+            with session.begin():
+                result = session.execute(stmt)
 
-        if self.cur.rowcount == 1:
+        if result.rowcount == 1:
             item["is_new"] = True
             return item
         raise DropItem(f"URL+Title already exists in db: {item}")
 
     def close_spider(self, spider):
-        if hasattr(self, "cur") and self.cur:
-            try:
-                self.cur.close()
-            except Exception:
-                pass
-        if hasattr(self, "conn") and self.conn:
-            try:
-                self.conn.close()
-            except Exception:
-                pass
+        if hasattr(self, "engine") and self.engine:
+            self.engine.dispose()
+
 
 
 class TelegramPipeline:
