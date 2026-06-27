@@ -25,6 +25,7 @@ jobs:
         run: uv run alembic upgrade head
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AI_MODE: "1"
 
       - name: Run Scraper Spiders
         run: uv run run.py
