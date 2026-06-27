@@ -14,8 +14,6 @@ class BreezyAISpider(scrapy.Spider):
 
 
     def start_requests(self):
-        if not self.crawler.settings.getbool("AI_MODE"):
-            return
         for url in self.start_urls:
             yield scrapy.Request(url=url, callback=self.parse)
 
