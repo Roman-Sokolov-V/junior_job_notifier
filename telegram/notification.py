@@ -5,7 +5,9 @@ import requests
 import dotenv
 
 from scrap_vac.db.session import get_db
-from scrap_vac.db.crud import get_not_notified
+from scrap_vac.db.crud import get_not_notified, mark_notified
+
+logging.basicConfig(level=logging.INFO)
 
 dotenv.load_dotenv()
 
@@ -16,7 +18,11 @@ if not TELEGRAM_BOT_TOKEN:
     raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
 
 
+
+
 def start_notification():
+    logging.info("_______________start notification")
+
     with get_db() as db:
         notification_data = get_not_notified(db)
 
@@ -28,6 +34,7 @@ def start_notification():
         title = escape(data.title or "")
         url = escape(data.url or "")
         source = escape(data.source or "")
+
 
         message = (
             f"🌟 <b>Нова вакансія!</b>\n\n"
@@ -48,9 +55,10 @@ def start_notification():
             response = requests.post(api_url, data=payload, timeout=10)
 
             if not response.ok:
-                print(response.text)
+                logging.warning(response.text)
 
             response.raise_for_status()
+            mark_notified(db, data.match_id)
 
         except Exception as e:
             logging.error(f"Telegram error: {e}")

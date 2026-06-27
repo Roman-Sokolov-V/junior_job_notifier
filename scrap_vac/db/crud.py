@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Sequence
 
 from sqlalchemy.orm import Session
-from sqlalchemy import select, Row
+from sqlalchemy import select, Row, update
 from sqlalchemy.dialects.postgresql import insert
 
 from scrap_vac.db.schemas import ProfileRow
@@ -38,7 +38,7 @@ def get_last_run(db: Session, key) -> datetime:
 def get_not_notified(db: Session) -> list[Row]:
     stmt = (
         select(
-            UserMatch.id,
+            UserMatch.id.label("match_id"),
             User.telegram_user_id,
             Vacancy.id,
             Vacancy.title,
@@ -80,3 +80,20 @@ def save_match(db: Session, profile: ProfileRow, vacancy_id: int, coverage: floa
         },
     )
     db.execute(upsert)
+
+
+def mark_notified(db: Session, match_id: int) -> None:
+    db.execute(
+        update(UserMatch)
+        .where(UserMatch.id == match_id)
+        .values(notified=True)
+    )
+    db.commit()
+
+
+def get_vacancies_urls(db: Session) -> Sequence[str]:
+    stmt = (
+        select(Vacancy.url)
+    )
+    result = db.execute(stmt)
+    return result.scalars().all()
