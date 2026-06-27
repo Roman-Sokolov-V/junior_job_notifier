@@ -130,6 +130,14 @@ To execute the main entrypoint script inside the isolated virtual environment ma
 ```bash
 uv run run.py
 ```
+The mode of operation (AI not AI) is defined in .env by a variable AI_MODE ("1" with AI "0" without) or just run like this:
+```bash
+AI_MODE=0 uv run run.py
+```
+```
+AI_MODE=1 uv run run.py
+```
+
 🤖 GitHub Actions CI/CD Automation
 
 The project includes a pre-configured GitHub Actions workflow that executes the scraping routine daily at 09:00 UTC (12:00 EET / 11:00 EEST), or anytime manually.
