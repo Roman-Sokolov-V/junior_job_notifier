@@ -1,0 +1,5 @@
+-- SQL schema is managed by Alembic (SQLAlchemy models live in scrap_vac/db/models.py).
+-- Apply migrations after configuring DATABASE_URL in .env:
+--
+--   uv sync
+--   uv run alembic upgrade head

@@ -22,8 +22,8 @@ The entire workflow is fully automated using **GitHub Actions**, powered by **`u
 
 ---
 
-## 🛠️ Project Architecture
-
+## 🛠️ Project Architecture  
+‼️ outdated ‼️
 ```angular2html
 ├── .github/
 │   └── workflows/
@@ -74,8 +74,56 @@ Create a .env file in the root directory (or export them in your shell session) 
 TELEGRAM_BOT_TOKEN="your_telegram_bot_token_here"
 TELEGRAM_CHAT_ID="your_telegram_chat_id_or_channel_id"
 DATABASE_URL="postgresql://user:password@your-supabase-host:5432/postgres"
+AI_MODE="0"  для роботи без ШІ, "1" - в режимі ШІ
 ```
+
+
+### Docker (PostgreSQL + app)
+
+Two services: **`db`** (Postgres 16) and **`app`** (this project). On start, the app runs **`alembic upgrade head`** then your command (default: `uv run run.py`).
+
+```bash
+# Optional: set AI_MODE / Telegram in a file and pass it to Compose (see .env.docker.example)
+cp .env.docker.example .env.docker
+docker compose --env-file .env.docker build   # first build is slow (torch + Playwright)
+docker compose --env-file .env.docker up
+```
+
+Or put `AI_MODE`, `TELEGRAM_*` in a `.env` file next to `docker-compose.yml` (Compose reads it for `${VAR}` substitution).
+
+`DATABASE_URL` is set inside `docker-compose.yml` for the app service. Override only if you use another DB.
+
+One-off commands:
+
+```bash
+docker compose run --rm app uv run match_new_batch.py
+docker compose run --rm app uv run scrapy crawl breezy_ai -O /tmp/breezy.csv
+```
+
+**Note:** the image includes Chromium for **scrapy-playwright**. It is large by design. For production you can later split “scraper” and “matcher” images or use a slimmer base if you drop Playwright from a service.
+
 ### Running the Scraper Locally
+
+#### Database schema (SQLAlchemy + Alembic)
+
+Tables and constraints are defined as ORM models under `scrap_vac/db/` and applied with Alembic (no hand-written SQL in pipelines).
+
+With `DATABASE_URL` set in `.env` (or exported in the shell):
+
+```bash
+uv run alembic upgrade head
+```
+
+Run this once on a new database, and after you pull new migrations. Scrapy pipelines only insert data; they do not 
+create tables.  
+
+
+‼️For AI mod. In the future, it is planned to make the program available to many users using a telegram bot ,
+which has not yet been implemented, so for correct operation it is necessary to manually https://supabase.com 
+enter your data, in the table 'users' - your telegram_user_id and username, in table 'user_profiles' - user_id which 
+will be generated in the table 'users', 'include_keywords' - the words of which are strictly required in the vacancy,
+for example ["python", "junior"] 'exclude_keywords' - the presence of which in the text of the vacancy will exclude it from the search result
+'query_text' - free-form text for AI analysis for additional filtering for example ‼️  
 
 To execute the main entrypoint script inside the isolated virtual environment managed by uv:
 

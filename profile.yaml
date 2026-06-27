@@ -1,0 +1,29 @@
+query_text: >
+  Шукаю junior або trainee Python backend вакансії.
+  Бажано Django або FastAPI, комерційний досвід до 1 року.
+  Також підходять англомовні вакансії.
+
+include_keywords:
+  - python
+  - django
+  - fastapi
+  - backend
+  - back-end
+  - junior
+  - trainee
+
+exclude_keywords:
+  - senior
+  - lead
+  - architect
+
+# Мінімальна частка include_keywords, які мають бути в тексті вакансії (0..1).
+# Наприклад 0.2 при 6 словах означає "хоча б 2 ключових слова".
+min_keyword_coverage: 0.2
+
+# Мінімальний семантичний score (0..1) для мультимовної моделі.
+min_semantic_score: 0.42
+
+# Скільки вакансій показувати в результаті.
+top_k: 20
+
