@@ -6,6 +6,8 @@ from scrap_vac.db.crud import get_vacancies_urls
 from scrap_vac.db.session import get_db
 from scrap_vac.spiders.breezy import BreezySpider
 from scrap_vac.spiders.gen_tech import GenTechSpider
+from scrap_vac.spiders.star_global_ai import StarGlobalAiSpider
+from scrap_vac.spiders.thingsboard_ai import ThingsboardAiSpider
 from scrap_vac.spiders.tieto import TietoSpider
 from scrap_vac.spiders.breezy_ai import BreezyAISpider
 from scrap_vac.spiders.gen_tech_ai import GenTechAISpider
@@ -32,6 +34,8 @@ def main():
         process.crawl(BreezyAISpider)
         process.crawl(GenTechAISpider)
         process.crawl(TietoAISpider)
+        process.crawl(ThingsboardAiSpider)
+        process.crawl(StarGlobalAiSpider)
     process.start()
 
 
