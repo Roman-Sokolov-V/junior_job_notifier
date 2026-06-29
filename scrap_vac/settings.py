@@ -47,6 +47,13 @@ DOWNLOAD_DELAY = 1
 #    "scrap_vac.middlewares.ScrapVacSpiderMiddleware": 543,
 #}
 
+
+
+# додаю свій мідлвар який скіпає скрапінг вакансій урл яких вже є в бд
+DOWNLOADER_MIDDLEWARES = {
+    "scrap_vac.middlewares.SkipExistingUrlsMiddleware": 543,
+}
+
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #DOWNLOADER_MIDDLEWARES = {

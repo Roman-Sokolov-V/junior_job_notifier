@@ -12,8 +12,6 @@ class GenTechAISpider(scrapy.Spider):
     name = "gen_tech_ai"
 
     def start_requests(self):
-        if not self.crawler.settings.getbool("AI_MODE"):
-            return
         yield scrapy.Request(
             "https://www.gen.tech/career",
             meta={

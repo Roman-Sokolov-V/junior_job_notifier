@@ -7,6 +7,7 @@ from scrapy import signals
 
 # useful for handling different item types with a single interface
 from itemadapter import ItemAdapter
+from scrapy.exceptions import IgnoreRequest
 
 
 class ScrapVacSpiderMiddleware:
@@ -98,3 +99,11 @@ class ScrapVacDownloaderMiddleware:
 
     def spider_opened(self, spider):
         spider.logger.info("Spider opened: %s" % spider.name)
+
+
+class SkipExistingUrlsMiddleware:
+    """Пропуск скрапінгу вакансій які вже є у списку існуючих"""
+    def process_request(self, request, spider):
+        existing_urls = spider.settings.get("EXISTING_URLS", set())
+        if request.url in existing_urls:
+            raise IgnoreRequest(f"URL already exists: {request.url}")
