@@ -1,9 +1,9 @@
 import scrapy
 
-from scrap_vac.spiders.common import MixinCommonSpider
+from scrap_vac.spiders.common import MixinTextEditor
 
 
-class ConversionRateSpider(MixinCommonSpider, scrapy.Spider):
+class ConversionRateSpider(MixinTextEditor, scrapy.Spider):
     name = "conversion_rate"
     allowed_domains = ["conversionrate.store"]
     start_urls = ["https://conversionrate.store/career/"]

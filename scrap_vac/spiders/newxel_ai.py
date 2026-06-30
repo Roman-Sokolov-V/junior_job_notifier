@@ -2,12 +2,12 @@ import scrapy
 from scrapy_playwright.page import PageMethod
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
-from scrap_vac.spiders.common import MixinCommonSpider
+from scrap_vac.spiders.common import MixinTextEditor
 
 
 
 
-class NewxelSpider(MixinCommonSpider, scrapy.Spider):
+class NewxelSpider(MixinTextEditor, scrapy.Spider):
     name = "newxel"
     allowed_domains = ["newxel.com"]
     start_urls = ["https://newxel.com/career/"]
@@ -20,12 +20,6 @@ class NewxelSpider(MixinCommonSpider, scrapy.Spider):
                 "playwright_include_page": True,
                 "playwright_page_methods": [
                     PageMethod("wait_for_load_state", "networkidle"),
-                    # # чекаємо, поки кнопка з'явиться
-                    # PageMethod("wait_for_selector", ".career-bottom button"),
-                    # # клікаємо
-                    # PageMethod("click", ".career-bottom button"),
-                    # # чекаємо, поки нові елементи підвантажаться
-                    # PageMethod("wait_for_selector", ".vacancy-item:nth-child(20)"),
                 ]
             },
             callback=self.parse,
