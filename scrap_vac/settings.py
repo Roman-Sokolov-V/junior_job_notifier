@@ -110,8 +110,36 @@ DOWNLOAD_HANDLERS = {
     "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
     "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
 }
-
-TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+PLAYWRIGHT_BROWSER_TYPE = "firefox"
+PLAYWRIGHT_LAUNCH_OPTIONS = {
+    "headless": True,
+    #"timeout": 20 * 1000,  # 20 seconds
+}
+# PLAYWRIGHT_CDP_URL = "http://localhost:9222"
+# PLAYWRIGHT_CDP_KWARGS = {
+#     "slow_mo": 1000,
+#     "timeout": 10 * 1000
+# }
+# PLAYWRIGHT_CONNECT_KWARGS = {
+#     "slow_mo": 1000,
+#     "timeout": 10 * 1000
+# }
+# PLAYWRIGHT_CONTEXTS = {
+#     "foobar": {
+#         "context_arg1": "value",
+#         "context_arg2": "value",
+#     },
+#     "default": {
+#         "context_arg1": "value",
+#         "context_arg2": "value",
+#     },
+#     "persistent": {
+#         "user_data_dir": "/path/to/dir",  # will be a persistent context
+#         "context_arg1": "value",
+#     },
+# }
+# PLAYWRIGHT_MAX_CONTEXTS = 8
+# TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 #####################################################################
 DATABASE_URL = os.getenv("DATABASE_URL")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
