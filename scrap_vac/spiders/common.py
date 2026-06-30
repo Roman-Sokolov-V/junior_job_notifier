@@ -23,6 +23,6 @@ class MixinCommonSpider():
         ])
 
     @classmethod
-    def extract_description(cls, response, main_block_class: str) -> str:
+    def extract_and_clean_all_text(cls, response, main_block_class: str) -> str:
         paragraphs = response.css(f'.{main_block_class} ::text').getall()
         return  cls.clean_paragraphs(paragraphs)

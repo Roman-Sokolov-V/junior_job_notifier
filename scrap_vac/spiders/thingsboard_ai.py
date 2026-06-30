@@ -19,6 +19,6 @@ class ThingsboardAiSpider(MixinCommonSpider, scrapy.Spider):
             "source": self.name,
             "title": response.css(".vacancy-head").css("h1::text").get(),
             "url": response.url,
-            "description_text": self.extract_description(response, "job-section"),
+            "description_text": self.extract_and_clean_all_text(response, "job-section"),
         }
 
