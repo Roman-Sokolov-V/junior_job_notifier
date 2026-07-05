@@ -73,23 +73,43 @@ def load_profiles() -> list[ProfileRow]:
     ]
 
 
-def keyword_filter(title: str, text: str, include: list[str], exclude: list[str], min_coverage: float) -> tuple[bool, float]:
-    # normalization
+def keyword_filter(title: str, text: str, include: list[str], exclude: list[str], min_coverage: float) -> tuple[
+    bool, float]:
+    """Функція відфільтровує вакансії в яких в title відсутнє жодне слово зі списку include
+    а також, ті в які в title присутнє принаймні одне слово зі списку exclude
+    Якщо ці перевірки пройдені, повертає True, 0.0 якщо відсутні слова в include
+    Інакше True, num: float  де  0 < num < 1   оцінка частоти зустрічи слів з include в text
+    """
+    # 1. Нормалізація
     norm_title = normalize_text(title)
-    norm_text = normalize_text(text)
+
+    # Створюємо сети для миттєвого і точного пошуку по словах в title
+    title_words = set(norm_title.split())
 
     include_norm = [normalize_text(word) for word in include]
-    exclude_norm = [normalize_text(word) for word in exclude]
+    exclude_set = set(normalize_text(word) for word in exclude)
 
-    # if any word from exclude list in title remove immediately
-    if exclude_norm and any(word in norm_title for word in exclude_norm):
+    # 2. Перевірка EXCLUDE (якщо є хоч одне слово в title -> видаляємо)
+    if exclude_set and exclude_set.intersection(title_words):
         return False, 0.0
 
+    # 3. Перевірка порожнього INCLUDE
     if not include_norm:
-        return True, 1.0
+        return True, 0.0
 
-    hits = sum(1 for word in include_norm if word in norm_text)
+    # 4. Перевірка INCLUDE в title (має бути хоча б ОДНЕ слово з include)
+    # Використовуємо any(word in norm_title), бо в include можуть бути фрази типу "data science"
+    if not any(word in norm_title for word in include_norm):
+        return False, 0.0
+
+    # 5. Рахуємо покриття (coverage) в ТЕКСТІ вакансії
+    norm_text = normalize_text(text)
+    # розбиваємо текст на слова для захисту від багу з "js" -> "json"
+    text_words = set(norm_text.split())
+
+    hits = sum(1 for word in include_norm if word in text_words)
     coverage = hits / len(include_norm)
+
     return coverage >= min_coverage, coverage
 
 #
@@ -141,15 +161,14 @@ def filter_vacancies() -> None:
     total_saved = 0
 
     for profile in profiles:
-        query_embedding = model.encode(profile.query_text, convert_to_tensor=True)
-        similarities = util.cos_sim(query_embedding, vacancy_embeddings)[0]  # Returns: Tensor: Matrix with res[i][j] = cos_sim(a[i], b[j])
-        print(profile.include_keywords)
-        print(profile.exclude_keywords)
-        print(similarities)
+        if profile.query_text:
+            query_embedding = model.encode(profile.query_text, convert_to_tensor=True)
+            similarities = util.cos_sim(query_embedding, vacancy_embeddings)[0]  # Returns: Tensor: Matrix with res[i][j] = cos_sim(a[i], b[j])
+
 
         candidates: list[tuple[int, float, float, float]] = []
         for idx, vacancy in enumerate(vacancies):
-            ok, coverage = keyword_filter(
+            ok, key_word_coverage = keyword_filter(
                 vacancy.title,
                 vacancy.full_text,
                 profile.include_keywords,
@@ -157,20 +176,24 @@ def filter_vacancies() -> None:
                 profile.min_keyword_coverage,
             )
             if not ok:
-                print("not ok")
+                print("not passed keyword filter")
                 continue
+            if not profile.query_text:
+                candidates.append((vacancy.id, key_word_coverage, 0.0, 0.0))
+            else:
+                semantic = float(similarities[idx])  #  обираємо потрібний semantic з матриці similarities за індексом вакансії
+                combined = semantic + key_word_coverage
+                if combined < profile.min_semantic_score:
+                    continue
+                candidates.append((vacancy.id, key_word_coverage, semantic, combined))
 
-            semantic = float(similarities[idx])
-            if semantic < profile.min_semantic_score:
-                continue
-            combined = 0.7 * semantic + 0.3 * coverage
-            candidates.append((vacancy.id, coverage, semantic, combined))
-
-        candidates.sort(key=lambda row: row[3], reverse=True)
-        for vacancy_id, coverage, semantic, combined in candidates[: profile.top_k]:
-            with get_db() as db:
-                save_match(db, profile, vacancy_id, coverage, semantic, combined)
-            total_saved += 1
+        # candidates.sort(key=lambda row: row[3], reverse=True)
+        # for vacancy_id, kew_word_coverage, semantic, combined in candidates[: profile.top_k]:
+        for vacancy_id, key_word_coverage, semantic, combined in candidates:
+            if key_word_coverage >= profile.min_keyword_coverage or semantic >= profile.min_semantic_score:
+                with get_db() as db:
+                    save_match(db, profile, vacancy_id, key_word_coverage, semantic, combined)
+                total_saved += 1
 
     newest_added_at = max(v.added_at for v in vacancies)
     set_last_run(db, newest_added_at)
