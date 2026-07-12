@@ -155,11 +155,13 @@ Click **New repository secret** and add the following keys:
 
 We are actively working on expanding and improving the scraper. The following milestones are planned for future releases:
 
-1. **🌐 Multi-Platform Expansion:** Continue adding new spiders to cover more individual companies' career pages.
+1. **🧭 Vector Search Migration (in progress):** Move semantic matching from in-memory `sentence-transformers` comparisons to database-native vector search using **pgvector**. Vacancy and profile embeddings will be computed once (at scrape/profile-creation time) and cached in Postgres, with similarity search and top-K ranking pushed down to SQL — cutting redundant embedding computation and enabling indexed nearest-neighbor lookups as the dataset grows.
 
-2. **🎯 Semantic Resume Match Score:** Develop a custom matching system that compares scraped vacancy descriptions against a user's CV/Resume using vector embeddings, calculating a "Match Score (%)" to prioritize the best opportunities.
+2. **🌐 Multi-Platform Expansion:** Continue adding new spiders to cover more individual companies' career pages.
 
-3. **📝 Smart Vacancy Summarization:** Implement automated text summarization to condense long job descriptions into concise, bulleted core requirements (key skills, salary, tech stack) directly within the Telegram alert.
+3. **🎯 Semantic Resume Match Score:** Develop a custom matching system that compares scraped vacancy descriptions against a user's CV/Resume using vector embeddings, calculating a "Match Score (%)" to prioritize the best opportunities.
+
+4. **📝 Smart Vacancy Summarization:** Implement automated text summarization to condense long job descriptions into concise, bulleted core requirements (key skills, salary, tech stack) directly within the Telegram alert.
 
 ---
 
