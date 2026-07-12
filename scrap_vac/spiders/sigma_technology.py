@@ -5,7 +5,7 @@ from scrap_vac.spiders.common import MixinTextEditor, MixinLangDetect
 
 
 class SigmaTechnologySpider(MixinLangDetect, MixinTextEditor, scrapy.Spider):
-    name = "sigma_technology_ai"
+    name = "sigma_technology"
     allowed_domains = ["sigmatechnology.com"]
     start_urls = ["https://sigmatechnology.com/open-positions/"]
 

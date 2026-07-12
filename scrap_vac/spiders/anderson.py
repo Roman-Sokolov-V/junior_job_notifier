@@ -2,8 +2,8 @@ import scrapy
 
 
 
-class AndersonAiSpider(scrapy.Spider):
-    name = "anderson_ai"
+class AndersonSpider(scrapy.Spider):
+    name = "anderson"
     allowed_domains = ["people.andersenlab.com", "asite-api.andersenlab.com"]
     start_urls = ["https://people.andersenlab.com/ua/vacancies"]
 

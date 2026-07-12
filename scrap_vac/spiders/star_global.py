@@ -4,8 +4,8 @@ import scrapy
 from scrapy import Selector
 
 
-class StarGlobalAiSpider(scrapy.Spider):
-    name = "star_global_ai"
+class StarGlobalSpider(scrapy.Spider):
+    name = "star_global"
     allowed_domains = ["star.global"]
     start_urls = ["https://star.global/careers/?pageSlug=careers"]
 

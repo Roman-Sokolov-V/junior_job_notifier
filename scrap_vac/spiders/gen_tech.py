@@ -4,107 +4,81 @@ from scrapy.http import Response
 
 
 class GenTechSpider(scrapy.Spider):
+    """
+    AI-mode version of GenTech spider.
+    Collects vacancy data without hardcoded junior/python filtering.
+    """
+
     name = "gen_tech"
 
     def start_requests(self):
-        # input_id = '#Development-comp-m9h1cdvh-6'
         yield scrapy.Request(
             "https://www.gen.tech/career",
             meta={
                 "playwright": True,
                 "playwright_include_page": True,
-                # "playwright_page_methods": [
-                #     # 1. Чекаємо завантаження списку
-                #     #PageMethod("wait_for_selector", 'div[role="listitem"]'),
-                #
-                #     # 2. Чекаємо чекбокс
-                #     PageMethod("wait_for_selector", input_id),
-                #
-                #     # 3. Клікаємо по фільтру
-                #     # 1. Скролимо до інпуту, щоб він був видимим
-                #     PageMethod("evaluate", f'document.querySelector("{input_id}").scrollIntoView({{block: "center"}})'),
-                #     PageMethod("wait_for_timeout", 1000),
-                #
-                #     # 2. Фокусуємося безпосередньо на інпуті
-                #     PageMethod("focus", input_id),
-                #
-                #     # 3. Тиснемо ПРОБІЛ (Space)
-                #     # Це змусить браузер перемкнути чекбокс і сповістити React так,
-                #     # ніби це зробив користувач з клавіатури
-                #     PageMethod("press", input_id, " "),
-                #
-                #
-                #     # 4. КРИТИЧНО: Чекаємо, поки зникне індикатор завантаження або
-                #     # оновиться список. На Wix краще почекати паузу або networkidle
-                #     PageMethod("wait_for_load_state", "networkidle"),
-                #
-                #     # Додаткова страховка: чекаємо 2 секунди, поки React перемалює картки
-                #     PageMethod("wait_for_timeout", 10000),
-                #
-                #     # Переконуємося, що після фільтрації хоча б одна картка є
-                #     PageMethod("wait_for_selector", 'div[role="listitem"]'),
-                #     # Робимо скріншот, щоб перевірити, чи вибрано фільтр
-                #     PageMethod("screenshot", path="check_filter.png", full_page=True),
-                # ],
             },
-            callback=self.parse
+            callback=self.parse,
         )
 
-    async def parse(self, response):
+    async def parse(self, response: Response):
         page = response.meta["playwright_page"]
         content = await page.content()
         response = response.replace(body=content)
+
         boxes = response.css('div[role="listitem"].wixui-repeater__item')
         links_titles = []
 
         for box in boxes:
-            title = " ".join(box.css(".wixui-rich-text__text::text").getall()).strip()
-            if re.search(r"junior", title, re.IGNORECASE):
+            title = self._normalize_ws(" ".join(box.css(".wixui-rich-text__text::text").getall()))
+            listing_context = self._normalize_ws(" ".join(box.css("span::text, p::text").getall()))
+
+            if re.search(r"junior", title, re.IGNORECASE): # todo remove in final version
                 link = box.css("a::attr(href)").get()
                 if link:
-                    links_titles.append((link, title))
+                    links_titles.append((link, title, listing_context))
 
-        # check detail pages
         if not links_titles:
             self.logger.info("Links not found...")
-        for link_title in links_titles:
+
+        for link, title, listing_context in links_titles:
             yield scrapy.Request(
-                url=link_title[0],
+                url=link,
                 callback=self.parse_detail_page,
-                meta={"title": link_title[1]}
+                meta={"title": title, "listing_context": listing_context},
             )
 
-        # Pagination
         next_button_selector = 'button[data-hook="pagination.navigation-button.next"]:not([disabled])'
-
-        # next_button = response.css(next_button_selector)
         is_next_active = await page.query_selector(next_button_selector)
 
         if is_next_active:
-            self.logger.info("Натискаємо кнопку Next...")
+            self.logger.info("Clicking Next...")
             await page.click(next_button_selector)
-
-            # Чекаємо на оновлення контенту
             await page.wait_for_load_state("networkidle")
             await page.wait_for_timeout(2000)
 
-            # Отримуємо оновлений контент сторінки
             content = await page.content()
-            # Створюємо новий response з оновленим HTML
             new_response = response.replace(body=content)
-            # Рекурсивно викликаємо parse для нової сторінки
             async for item in self.parse(new_response):
                 yield item
         else:
-            # Якщо кнопки немає або вона disabled — закриваємо сторінку
             await page.close()
 
-
     def parse_detail_page(self, response: Response):
-        if text:= " ".join(response.css(".wixui-box p::text").getall()).strip():
-            if re.search(r"(python|пайтон)", text, re.IGNORECASE):
-                yield {"title": response.meta["title"], "url": response.url}
-            else:
-                self.logger.info("not python vacancy")
-        else:
-            self.logger.info("text not found...")
+        description_text = self._extract_description(response)
+        yield {
+            "source": "gen_tech",
+            "title": response.meta.get("title", ""),
+            "url": response.url,
+            "listing_context": response.meta.get("listing_context", ""),
+            "description_text": description_text,
+        }
+
+    @staticmethod
+    def _normalize_ws(value: str) -> str:
+        return " ".join(value.split()).strip()
+
+    def _extract_description(self, response: Response) -> str:
+        blocks = response.css("section p::text, article p::text, .wixui-box p::text, p::text").getall()
+        cleaned = [self._normalize_ws(text) for text in blocks if text and text.strip()]
+        return "\n".join(cleaned)

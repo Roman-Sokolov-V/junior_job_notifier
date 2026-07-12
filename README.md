@@ -1,163 +1,153 @@
-# 🕵️‍♂️ Vacancy Auto Scraper
+# 🕵️‍♂️ Junior Job Notifier
 
-A robust, production-ready asynchronous job vacancy scraper built with **Scrapy**. It automatically tracks, filters, and collects job openings, stores the structured data in a **PostgreSQL (Supabase)** database, and sends instant automated notifications via a **Telegram bot**.
+A robust, production-ready asynchronous job vacancy scraper built with **Scrapy**. It automatically tracks, filters, and collects job openings directly from individual companies' career pages, stores the structured data in a **PostgreSQL (Supabase)** database, and matches them against per-user search profiles — with results delivered through [**junior_job_notifier_bot**](https://github.com/Roman-Sokolov-V/junior_job_notifier_bot) on Telegram.
 
-The entire workflow is fully automated using **GitHub Actions**, powered by **`uv`** for blazing-fast dependency management and smart caching.
+The entire scraping workflow is fully automated using **GitHub Actions**, powered by **`uv`** for blazing-fast dependency management and smart caching.
 
 ---
 
 ### 📢 Full Disclosure & Motivation
-**I am actively looking for a job as a Python Backend Developer.** This project was born out of a personal need to automate and optimize my own job hunt. I am building and maintaining this system for myself, and I will continuously refine it until I land my next role. *Ironically, I sincerely hope to find a great job way before I manage to implement every complex feature planned for this tool!* 😄
+**I am actively looking for a job as a Python Backend Developer.** This project was born out of a personal need to automate and optimize my own job hunt — specifically, to track openings directly on individual companies' career pages rather than the major job boards, where competition for junior roles is fierce. I am building and maintaining this system for myself, and I will continuously refine it until I land my next role. *Ironically, I sincerely hope to find a great job way before I manage to implement every complex feature planned for this tool!* 😄
+
+---
+
+## 🔗 Related Project
+
+User registration, search profile management, and browsing matched vacancies are handled by a companion Telegram bot:
+
+👉 [**junior_job_notifier_bot**](https://github.com/Roman-Sokolov-V/junior_job_notifier_bot)
+
+This repository is responsible for scraping and matching only — it has no user-facing interface of its own.
 
 ---
 
 ## 🚀 Features
 
-- **Automated Scraping:** Scheduled or manual runs using GitHub Actions.
+- **Automated Scraping:** Scheduled or manual runs using GitHub Actions, targeting individual companies' own career pages rather than aggregator sites.
 - **Asynchronous Architecture:** Built on Scrapy for high-performance concurrent requests.
 - **Relational Storage & Deduplication:** Integrated with PostgreSQL (hosted on Supabase) to store job descriptions and filter out duplicate entries, ensuring users only receive unique, newly posted vacancies.
-- **Instant Alerts:** Telegram bot integration for real-time notifications about new job opportunities.
+- **Per-User Search Profiles:** Each registered user can create an unlimited number of search profiles, each combining:
+  - **Include keywords** — a vacancy's title must contain at least one of these to pass.
+  - **Exclude keywords** — a vacancy's title is rejected if it contains any of these.
+  - **AI semantic matching** — a free-form text prompt (`query_text`) used to semantically match vacancies that survive the keyword filters, via an LLM.
+
+  All three criteria are optional, but at least one must be set per profile.
+- **Bot-Driven Registration:** Users register, create/edit/delete profiles, and browse matched vacancies entirely through [junior_job_notifier_bot](https://github.com/Roman-Sokolov-V/junior_job_notifier_bot) — no manual database entry required.
+- **Instant Alerts:** New matches are delivered to users via the Telegram bot.
 - **Modern Python Tooling:** Managed entirely via `uv` for deterministic, lightning-fast dependency resolution and isolated virtual environments.
-- **Cloud-Native CI/CD:** Fully automated daily execution utilizing GitHub Actions with custom caching layer.
+- **Cloud-Native CI/CD:** Fully automated daily execution utilizing GitHub Actions with a custom caching layer.
 
 ---
 
-## 🛠️ Project Architecture  
-‼️ outdated ‼️
-```angular2html
-├── .github/
-│   └── workflows/
-│       └── scrape.yml        # GitHub Actions automation workflow
-├── scraper/                  # Core Scrapy project directory
-│   ├── spiders/              # Job vacancy spiders
-│   ├── items.py              # Scrapy item data models
-│   ├── pipelines.py          # Database & clean-up pipelines
-│   └── settings.py           # Scrapy configuration settings
-├── .python-version           # Explicit Python version pinned by uv
-├── pyproject.toml            # Modern project metadata & dependencies declaration
-├── run.py                    # Main script orchestration entrypoint
-└── uv.lock                   # Cryptographically locked dependency graph
+## 🛠️ Project Architecture
+
+```
+junior_job_notifier/
+├── alembic/
+│   ├── versions/              # Database migrations
+│   ├── env.py
+│   └── script.py.mako
+├── db/
+│   └── ai_schema.sql
+├── docker/
+│   └── entrypoint.sh
+├── scrap_vac/                 # Core Scrapy project directory
+│   ├── db/
+│   │   ├── base.py
+│   │   ├── crud.py
+│   │   ├── models.py          # SQLAlchemy ORM models
+│   │   ├── schemas.py
+│   │   └── session.py
+│   ├── spiders/
+│   │   ├── anderson.py
+│   │   ├── breezy.py
+│   │   ├── common.py
+│   │   ├── conversion_rate.py
+│   │   ├── gen_tech.py
+│   │   ├── newxel.py
+│   │   ├── sigma_technology.py
+│   │   ├── star_global.py
+│   │   ├── thingsboard.py
+│   │   └── tieto.py
+│   ├── items.py
+│   ├── middlewares.py
+│   ├── pipelines.py
+│   └── settings.py
+├── telegram/
+│   └── notification.py        # Sends matched vacancies to the bot's users
+├── Dockerfile
+├── alembic.ini
+├── docker-compose.yml
+├── exam_batch.py
+├── match_new_batch.py         # Runs profile-based  matching against newly scraped vacancies
+├── profile.yaml
+├── pyproject.toml
+├── run.py                     # Main entrypoint
+└── uv.lock
 ```
 
 ---
 
-## 🔧 Local Setup & Installation
+## 🔧 Setup & Installation
 
-This project utilizes [uv](https://github.com/astral-sh/uv), an extremely fast Python package and project manager written in Rust.
+This project runs via **Docker Compose**, which provisions both the app and a PostgreSQL database and takes care of running migrations automatically — no local Python environment setup required.
 
-### 1. Prerequisites
-
-Ensure you have `uv` installed on your machine. If not, install it via:
-#### On Linux/macOS
-```bash
-curl -LsSf [https://astral.sh/uv/install.sh](https://astral.sh/uv/install.sh) | sh
-```
-
-### 2. Clone the Repository
+### 1. Clone the Repository
 
 ```bash
-git clone [https://github.com/yourusername/vacancy-auto-scraper.git](https://github.com/yourusername/vacancy-auto-scraper.git)
-cd vacancy-auto-scraper
+git clone https://github.com/Roman-Sokolov-V/junior_job_notifier.git
+cd junior_job_notifier
 ```
 
-### 3. Install Dependencies & Setup Environment
+### 2. Configuration
 
-Run the following command to automatically discover the required Python version, create a localized .venv, and synchronize all locked dependencies:
 ```bash
-uv sync
+cp .env.docker.example .env.docker
 ```
-### 4. Configuration
 
-Create a .env file in the root directory (or export them in your shell session) and populate it with your credentials:
+Populate `.env.docker` with your credentials:
 
-```angular2html
+```
 TELEGRAM_BOT_TOKEN="your_telegram_bot_token_here"
 TELEGRAM_CHAT_ID="your_telegram_chat_id_or_channel_id"
-DATABASE_URL="postgresql://user:password@your-supabase-host:5432/postgres"
-AI_MODE="0"  для роботи без ШІ, "1" - в режимі ШІ
 ```
 
+`DATABASE_URL` is set inside `docker-compose.yml` for the app service and doesn't need to be provided separately — Compose provisions its own PostgreSQL instance for local runs.
 
-### Docker (PostgreSQL + app)
+### 3. Build and Run
 
 Two services: **`db`** (Postgres 16) and **`app`** (this project). On start, the app runs **`alembic upgrade head`** then your command (default: `uv run run.py`).
 
 ```bash
-# Optional: set AI_MODE / Telegram in a file and pass it to Compose (see .env.docker.example)
-cp .env.docker.example .env.docker
 docker compose --env-file .env.docker build   # first build is slow (torch + Playwright)
 docker compose --env-file .env.docker up
 ```
 
-Or put `AI_MODE`, `TELEGRAM_*` in a `.env` file next to `docker-compose.yml` (Compose reads it for `${VAR}` substitution).
+**Note:** the image includes Chromium for **scrapy-playwright**. It is large by design. For production you can later split "scraper" and "matcher" images or use a slimmer base if you drop Playwright from a service.
 
-`DATABASE_URL` is set inside `docker-compose.yml` for the app service. Override only if you use another DB.
+Users, their search profiles, and matching results all live in Supabase and are managed exclusively through [junior_job_notifier_bot](https://github.com/Roman-Sokolov-V/junior_job_notifier_bot) — manual editing of the `users` / `user_profiles` tables is no longer necessary or recommended.
 
-One-off commands:
+---
 
-```bash
-docker compose run --rm app uv run match_new_batch.py
-docker compose run --rm app uv run scrapy crawl breezy_ai -O /tmp/breezy.csv
-```
-
-**Note:** the image includes Chromium for **scrapy-playwright**. It is large by design. For production you can later split “scraper” and “matcher” images or use a slimmer base if you drop Playwright from a service.
-
-### Running the Scraper Locally
-
-#### Database schema (SQLAlchemy + Alembic)
-
-Tables and constraints are defined as ORM models under `scrap_vac/db/` and applied with Alembic (no hand-written SQL in pipelines).
-
-With `DATABASE_URL` set in `.env` (or exported in the shell):
-
-```bash
-uv run alembic upgrade head
-```
-
-Run this once on a new database, and after you pull new migrations. Scrapy pipelines only insert data; they do not 
-create tables.  
-
-
-‼️For AI mod. In the future, it is planned to make the program available to many users using a telegram bot ,
-which has not yet been implemented, so for correct operation it is necessary to manually https://supabase.com 
-enter your data, in the table 'users' - your telegram_user_id and username, in table 'user_profiles' - user_id which 
-will be generated in the table 'users', 'include_keywords' - the words of which are strictly required in the vacancy,
-for example ["python", "junior"] 'exclude_keywords' - the presence of which in the text of the vacancy will exclude it from the search result
-'query_text' - free-form text for AI analysis for additional filtering for example ‼️  
-
-To execute the main entrypoint script inside the isolated virtual environment managed by uv:
-
-```bash
-uv run run.py
-```
-The mode of operation (AI not AI) is defined in .env by a variable AI_MODE ("1" with AI "0" without) or just run like this:
-```bash
-AI_MODE=0 uv run run.py
-```
-```
-AI_MODE=1 uv run run.py
-```
-
-🤖 GitHub Actions CI/CD Automation
+## 🤖 GitHub Actions CI/CD Automation
 
 The project includes a pre-configured GitHub Actions workflow that executes the scraping routine daily at 09:00 UTC (12:00 EET / 11:00 EEST), or anytime manually.
+
 Operationalizing in GitHub:
 
-Push Everything: Ensure pyproject.toml and uv.lock are committed to your GitHub repository so that the pipeline can mirror your exact local environment.
+**Push Everything:** Ensure `pyproject.toml` and `uv.lock` are committed to your GitHub repository so that the pipeline can mirror your exact local environment.
 
-Configure Encrypted Secrets:
+**Configure Encrypted Secrets:**
 
 Go to your repository on GitHub: Settings ➡️ Secrets and variables ➡️ Actions.
 
-Click New repository secret and add the following keys:
+Click **New repository secret** and add the following keys:
 
-    TELEGRAM_BOT_TOKEN
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
+- `DATABASE_URL`
 
-    TELEGRAM_CHAT_ID
-
-    DATABASE_URL
-
-Triggering: Check the Actions tab on GitHub to see execution logs, test manually via Run workflow, or leave it to run autonomously according to the cron schedule.  
+**Triggering:** Check the Actions tab on GitHub to see execution logs, test manually via **Run workflow**, or leave it to run autonomously according to the cron schedule.
 
 ---
 
@@ -165,13 +155,11 @@ Triggering: Check the Actions tab on GitHub to see execution logs, test manually
 
 We are actively working on expanding and improving the scraper. The following milestones are planned for future releases:
 
-1. **🌐 Multi-Platform Expansion:** Develop and deploy additional Scrapy spiders to aggregate data from a wider range of regional and global job boards, maximizing vacancy coverage.
+1. **🌐 Multi-Platform Expansion:** Continue adding new spiders to cover more individual companies' career pages.
 
-2. **🤖 AI-Powered Job Classification:** Integrate LLM processing to accurately classify job seniority (e.g., distinguishing *Junior*, *Middle*, and *Senior* roles) and tech stacks, bypassing messy or inaccurate tags provided by job boards.
+2. **🎯 Semantic Resume Match Score:** Develop a custom matching system that compares scraped vacancy descriptions against a user's CV/Resume using vector embeddings, calculating a "Match Score (%)" to prioritize the best opportunities.
 
-3. **📝 Smart Vacancy Summarization:** Implement automated text summarization using OpenAI/Anthropic APIs to condense long job descriptions into concise, bulleted core requirements (key skills, salary, tech stack) directly within the Telegram alert.
-
-4. **🎯 Semantic Resume Match Score:** Develop a custom matching system that compares scraped vacancy descriptions against a user's CV/Resume using vector embeddings, calculating a "Match Score (%)" to prioritize the best opportunities.
+3. **📝 Smart Vacancy Summarization:** Implement automated text summarization to condense long job descriptions into concise, bulleted core requirements (key skills, salary, tech stack) directly within the Telegram alert.
 
 ---
 
@@ -187,4 +175,4 @@ If you have any questions, suggestions, or would like to collaborate on this pro
 
 - **Telegram:** [@Roman_Sokolo_v](https://t.me/Roman_Sokolo_v)
 - **LinkedIn:** [roman-sokolov](https://www.linkedin.com/in/roman-sokolov-a7614330b/)
-- **Email:** [roman.sokolov.developer@gmail.com](roman.sokolov.developer@gmail.com)
+- **Email:** roman.sokolov.developer@gmail.com

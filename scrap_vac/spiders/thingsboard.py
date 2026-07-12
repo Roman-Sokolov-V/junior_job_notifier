@@ -3,8 +3,8 @@ import scrapy
 from scrap_vac.spiders.common import MixinTextEditor
 
 
-class ThingsboardAiSpider(MixinTextEditor, scrapy.Spider):
-    name = "thingsboard_ai"
+class ThingsboardSpider(MixinTextEditor, scrapy.Spider):
+    name = "thingsboard"
     allowed_domains = ["thingsboard.io"]
     start_urls = ["https://thingsboard.io/careers/"]
 
