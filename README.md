@@ -108,8 +108,7 @@ cp .env.docker.example .env.docker
 Populate `.env.docker` with your credentials:
 
 ```
-TELEGRAM_BOT_TOKEN="your_telegram_bot_token_here"
-TELEGRAM_CHAT_ID="your_telegram_chat_id_or_channel_id"
+TELEGRAM_BOT_TOKEN="the same token as for junior_job_notifier_bot"
 ```
 
 `DATABASE_URL` is set inside `docker-compose.yml` for the app service and doesn't need to be provided separately — Compose provisions its own PostgreSQL instance for local runs.
