@@ -54,7 +54,6 @@ def load_profiles() -> list[ProfileRow]:
             exclude_keywords=to_str_list(p.exclude_keywords),
             min_keyword_coverage=float(p.min_keyword_coverage),
             min_semantic_score=float(p.min_semantic_score),
-            top_k=int(p.top_k),
         )
         for p in profiles
     ]

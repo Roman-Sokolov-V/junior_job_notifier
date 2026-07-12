@@ -28,7 +28,7 @@ class ProfileRow:
     exclude_keywords: list[str]
     min_keyword_coverage: float
     min_semantic_score: float
-    top_k: int
+
 
 @dataclass
 class MatchCandidate:
