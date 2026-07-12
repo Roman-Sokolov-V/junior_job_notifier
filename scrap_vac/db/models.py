@@ -33,7 +33,7 @@ class Vacancy(Base):
     source: Mapped[str | None] = mapped_column(Text, nullable=True)
     listing_context: Mapped[str | None] = mapped_column(Text, nullable=True)
     description_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    content_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #content_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     added_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
         server_default=func.now(),
@@ -78,7 +78,7 @@ class UserProfile(Base):
     )
     min_keyword_coverage: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0.2"))
     min_semantic_score: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0.42"))
-    top_k: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("20"))
+    #top_k: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("20"))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
