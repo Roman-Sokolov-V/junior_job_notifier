@@ -11,7 +11,6 @@ class TietoSpider(scrapy.Spider):
     name = "tieto"
     allowed_domains = ["careers.tieto.com"]
     start_urls = ["https://careers.tieto.com/jobs?options=193%2C403"]
-   # impossible = {"middle", "senior"} # todo remove in final version
 
     def start_requests(self):
         for url in self.start_urls:
@@ -20,10 +19,6 @@ class TietoSpider(scrapy.Spider):
     def parse(self, response: Response):
         for box in response.css(".attrax-vacancy-tile"):
             title = self._normalize_ws(box.css("a::text").get(""))
-            # if set(title.lower().split()).intersection(self.impossible): # todo remove in final version
-            #     self.logger.info("not junior vacancy") # todo remove in final version
-            # else: # todo remove in final version
-            #self.logger.info("maybe junior vacancy")
             listing_context = self._normalize_ws(" ".join(box.css("p::text, span::text").getall()))
             href = box.css("a::attr(href)").get()
             if not href:

@@ -41,20 +41,7 @@ class SigmaTechnologySpider(MixinLangDetect, MixinTextEditor, scrapy.Spider):
             language = self.detect_language(vacancy.get("description"))
             if language not in  ("en", "uk", "ukr"):
                 continue
-            # yield {
-            #     "source": "sigma",
-            #     "title": vacancy.get("title"),
-            #     "company": vacancy.get("company"),
-            #     "country": vacancy.get("country"),
-            #     "city": vacancy.get("cities"),
-            #     "url": vacancy.get("link"),
-            #     "apply_url": vacancy.get("applyUrl"),
-            #     "publication_date": self.parse_pub_date(vacancy.get("publicationDate")),
-            #     "expiration_date": vacancy.get("expirationDate"),
-            #     "description": vacancy.get("description"),
-            #     "detected_language": self.detect_language(vacancy.get("description")),
-            #     "is_external": not vacancy.get("recruitment", {}).get("sigma", True),
-            # }
+
             description = self.html_to_text(vacancy.get("description", ""))
             qualifications = self.html_to_text(vacancy.get("qualifications", ""))
             experience = self.html_to_text(vacancy.get("experience", ""))

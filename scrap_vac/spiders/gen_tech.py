@@ -4,11 +4,6 @@ from scrapy.http import Response
 
 
 class GenTechSpider(scrapy.Spider):
-    """
-    AI-mode version of GenTech spider.
-    Collects vacancy data without hardcoded junior/python filtering.
-    """
-
     name = "gen_tech"
 
     def start_requests(self):
@@ -32,11 +27,9 @@ class GenTechSpider(scrapy.Spider):
         for box in boxes:
             title = self._normalize_ws(" ".join(box.css(".wixui-rich-text__text::text").getall()))
             listing_context = self._normalize_ws(" ".join(box.css("span::text, p::text").getall()))
-
-            if re.search(r"junior", title, re.IGNORECASE): # todo remove in final version
-                link = box.css("a::attr(href)").get()
-                if link:
-                    links_titles.append((link, title, listing_context))
+            link = box.css("a::attr(href)").get()
+            if link:
+                links_titles.append((link, title, listing_context))
 
         if not links_titles:
             self.logger.info("Links not found...")
