@@ -1,16 +1,11 @@
-import logging
 import os
-from dataclasses import dataclass
 from datetime import datetime
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer, util
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.sql import func
-from sqlalchemy.orm import Session
 
-from scrap_vac.db.crud import get_active_users_profiles, get_vacancies_since_date, get_last_run, save_match
-from scrap_vac.db.models import MatcherState
-from scrap_vac.db.schemas import VacancyRow, ProfileRow
+
+from scrap_vac.db.crud import get_active_users_profiles, get_vacancies_since_date, get_last_run, set_last_run, save_match
+from scrap_vac.db.schemas import VacancyRow, ProfileRow, MatchCandidate
 from scrap_vac.db.session import get_db
 
 MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -27,14 +22,6 @@ def to_str_list(value) -> list[str]:
         return [str(x) for x in value if str(x).strip()]
     return []
 
-
-def set_last_run(db: Session, ts: datetime) -> None:
-    upsert = insert(MatcherState).values(key=STATE_KEY, value=ts.isoformat())
-    upsert = upsert.on_conflict_do_update(
-        index_elements=["key"],
-        set_={"value": upsert.excluded.value, "updated_at": func.now()},
-    )
-    db.execute(upsert)
 
 
 def load_new_vacancies(since_ts: datetime) -> list[VacancyRow]:
@@ -112,96 +99,81 @@ def keyword_filter(title: str, text: str, include: list[str], exclude: list[str]
 
     return coverage >= min_coverage, coverage
 
-#
-# def save_match(profile: ProfileRow, vacancy_id: int, coverage: float, semantic: float, combined: float) -> None:
-#     reason = {
-#         "profile_name": profile.name,
-#         "keyword_coverage": round(coverage, 4),
-#         "semantic_score": round(semantic, 4),
-#         "combined_score": round(combined, 4),
-#     }
-#     upsert = insert(UserMatch).values(
-#         user_id=profile.user_id,
-#         profile_id=profile.id,
-#         vacancy_id=vacancy_id,
-#         keyword_coverage=coverage,
-#         semantic_score=semantic,
-#         combined_score=combined,
-#         reason_json=reason,
-#     )
-#     upsert = upsert.on_conflict_do_update(
-#         constraint="uq_user_matches_profile_vacancy",
-#         set_={
-#             "keyword_coverage": upsert.excluded.keyword_coverage,
-#             "semantic_score": upsert.excluded.semantic_score,
-#             "combined_score": upsert.excluded.combined_score,
-#             "reason_json": upsert.excluded.reason_json,
-#         },
-#     )
-#     with get_db() as db:
-#         db.execute(upsert)
+
+
+
+def _score_candidates(profile, vacancies, similarities) -> list[MatchCandidate]:
+    """Applies keyword filtering and, if the profile has a query_text,
+    semantic filtering. Each candidate is checked exactly once."""
+    candidates: list[MatchCandidate] = []
+
+    for idx, vacancy in enumerate(vacancies):
+        passed, coverage = keyword_filter(
+            vacancy.title,
+            vacancy.full_text,
+            profile.include_keywords,
+            profile.exclude_keywords,
+            profile.min_keyword_coverage,
+        )
+        if not passed:
+            continue
+
+        if profile.query_text:
+            semantic = float(similarities[idx])
+            combined = semantic + coverage
+            if combined < profile.min_semantic_score:
+                continue
+        else:
+            semantic = 0.0
+            combined = coverage
+
+        candidates.append(MatchCandidate(vacancy.id, coverage, semantic, combined))
+
+    return candidates
 
 
 def filter_vacancies() -> None:
-    with get_db() as db:
-        last_run = get_last_run(db=db, key=STATE_KEY)
-
-    vacancies = load_new_vacancies(last_run)
     profiles = load_profiles()
     if not profiles:
         print("No active profiles in user_profiles. Nothing to process.")
         return
-    if not vacancies:
-        print("No new vacancies since last matcher run.")
-        return
 
-    model = SentenceTransformer(MODEL_NAME)
-    vacancy_texts = [vac.full_text for vac in vacancies] # список текстів вакансій
-    vacancy_embeddings = model.encode(vacancy_texts, convert_to_tensor=True)
+    model = SentenceTransformer(MODEL_NAME)  # завантажуємо один раз
     total_saved = 0
+    total_profiles_processed = 0
 
     for profile in profiles:
+        state_key = f"profile:{profile.id}"
+
+        with get_db() as db:
+            last_run = get_last_run(db, key=state_key)
+
+        vacancies = load_new_vacancies(last_run)
+        if not vacancies:
+            continue
+
+        vacancy_texts = [vac.full_text for vac in vacancies]
+        vacancy_embeddings = model.encode(vacancy_texts, convert_to_tensor=True)
+
+        similarities = None
         if profile.query_text:
             query_embedding = model.encode(profile.query_text, convert_to_tensor=True)
-            similarities = util.cos_sim(query_embedding, vacancy_embeddings)[0]  # Returns: Tensor: Matrix with res[i][j] = cos_sim(a[i], b[j])
+            similarities = util.cos_sim(query_embedding, vacancy_embeddings)[0]
 
+        candidates = _score_candidates(profile, vacancies, similarities)
 
-        candidates: list[tuple[int, float, float, float]] = []
-        for idx, vacancy in enumerate(vacancies):
-            ok, key_word_coverage = keyword_filter(
-                vacancy.title,
-                vacancy.full_text,
-                profile.include_keywords,
-                profile.exclude_keywords,
-                profile.min_keyword_coverage,
-            )
-            if not ok:
-                print("not passed keyword filter")
-                continue
-            if not profile.query_text:
-                candidates.append((vacancy.id, key_word_coverage, 0.0, 0.0))
-            else:
-                semantic = float(similarities[idx])  #  обираємо потрібний semantic з матриці similarities за індексом вакансії
-                combined = semantic + key_word_coverage
-                if combined < profile.min_semantic_score:
-                    continue
-                candidates.append((vacancy.id, key_word_coverage, semantic, combined))
-
-        # candidates.sort(key=lambda row: row[3], reverse=True)
-        # for vacancy_id, kew_word_coverage, semantic, combined in candidates[: profile.top_k]:
-        for vacancy_id, key_word_coverage, semantic, combined in candidates:
-            if key_word_coverage >= profile.min_keyword_coverage or semantic >= profile.min_semantic_score:
-                with get_db() as db:
-                    save_match(db, profile, vacancy_id, key_word_coverage, semantic, combined)
+        newest_added_at = max(v.added_at for v in vacancies)
+        with get_db() as db:
+            for c in candidates:
+                save_match(db, profile, c.vacancy_id, c.keyword_coverage, c.semantic_score, c.combined_score)
                 total_saved += 1
+            set_last_run(db, key=state_key, ts=newest_added_at)
 
-    newest_added_at = max(v.added_at for v in vacancies)
-    set_last_run(db, newest_added_at)
+        total_profiles_processed += 1
 
-    print(f"Processed new vacancies: {len(vacancies)}")
-    print(f"Processed active profiles: {len(profiles)}")
+    print(f"Profiles with new vacancies processed: {total_profiles_processed}")
+    print(f"Total profiles: {len(profiles)}")
     print(f"Saved/updated matches: {total_saved}")
-    print(f"Updated state {STATE_KEY} -> {newest_added_at.isoformat()}")
 
 
 

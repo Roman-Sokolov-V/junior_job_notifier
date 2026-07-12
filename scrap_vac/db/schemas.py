@@ -29,3 +29,10 @@ class ProfileRow:
     min_keyword_coverage: float
     min_semantic_score: float
     top_k: int
+
+@dataclass
+class MatchCandidate:
+    vacancy_id: int
+    keyword_coverage: float
+    semantic_score: float
+    combined_score: float

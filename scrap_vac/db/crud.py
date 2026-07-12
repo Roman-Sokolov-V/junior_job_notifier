@@ -4,6 +4,7 @@ from typing import Sequence
 from sqlalchemy.orm import Session
 from sqlalchemy import select, Row, update
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.sql import func
 
 from scrap_vac.db.schemas import ProfileRow
 from scrap_vac.db.models import Vacancy, UserProfile, User, MatcherState, UserMatch
@@ -34,6 +35,14 @@ def get_last_run(db: Session, key) -> datetime:
     if not row:
         return datetime(1970, 1, 1)
     return datetime.fromisoformat(row.value)
+
+def set_last_run(db: Session, key: str, ts: datetime) -> None:
+    upsert = insert(MatcherState).values(key=key, value=ts.isoformat())
+    upsert = upsert.on_conflict_do_update(
+        index_elements=["key"],
+        set_={"value": upsert.excluded.value, "updated_at": func.now()},
+    )
+    db.execute(upsert)
 
 def get_not_notified(db: Session) -> list[Row]:
     stmt = (
@@ -97,3 +106,4 @@ def get_vacancies_urls(db: Session) -> Sequence[str]:
     )
     result = db.execute(stmt)
     return result.scalars().all()
+

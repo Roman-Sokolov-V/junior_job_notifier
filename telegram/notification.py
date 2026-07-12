@@ -7,7 +7,7 @@ import dotenv
 from scrap_vac.db.session import get_db
 from scrap_vac.db.crud import get_not_notified, mark_notified
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 dotenv.load_dotenv()
 
@@ -25,6 +25,7 @@ def start_notification():
 
     with get_db() as db:
         notification_data = get_not_notified(db)
+        logging.debug("знайдено {}".format(len(notification_data)))
 
     for data in notification_data:
 
