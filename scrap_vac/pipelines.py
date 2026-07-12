@@ -32,12 +32,6 @@ class PostgresPipeline:
 
     def process_item(self, item, spider):
         description_text = item.get("description_text", "") or ""
-        # content_hash = (
-        #     hashlib.md5(description_text.encode("utf-8")).hexdigest()
-        #     if description_text
-        #     else None
-        # )
-
         stmt = (
             insert(Vacancy)
             .values(
@@ -46,7 +40,6 @@ class PostgresPipeline:
                 source=item.get("source"),
                 listing_context=item.get("listing_context"),
                 description_text=description_text or None
-                #content_hash=content_hash,
             )
             .on_conflict_do_nothing(constraint="uq_vacancies_url_title")
         )
@@ -62,42 +55,3 @@ class PostgresPipeline:
     def close_spider(self, spider):
         if hasattr(self, "engine") and self.engine:
             self.engine.dispose()
-
-
-
-class TelegramPipeline:
-    def __init__(self, token, chat_id):
-        self.token = token
-        self.chat_id = chat_id
-        self.api_url = f"https://api.telegram.org/bot{self.token}/sendMessage"
-
-    @classmethod
-    def from_crawler(cls, crawler):
-        token = crawler.settings.get("TELEGRAM_BOT_TOKEN")
-        chat_id = crawler.settings.get("TELEGRAM_CHAT_ID")
-
-        if not token or not chat_id:
-            raise NotConfigured("Telegram Token or Chat ID not found!")
-
-        return cls(token, chat_id)
-
-    def process_item(self, item, spider):
-        message = (
-            f"🌟 *Нова вакансія!*\n\n"
-            f"📋 *Назва:* {item['title']}\n"
-            f"🔗 [Переглянути]({item['url']})"
-        )
-
-        payload = {
-            "chat_id": self.chat_id,
-            "text": message,
-            "parse_mode": "Markdown",
-        }
-
-        try:
-            response = requests.post(self.api_url, data=payload)
-            response.raise_for_status()
-        except Exception as e:
-            spider.logger.error(f"Telegram error: {e}")
-
-        return item
