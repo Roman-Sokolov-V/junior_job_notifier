@@ -18,7 +18,9 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from scrap_vac.db.base import Base
+from pgvector.sqlalchemy import Vector
+
+from db.base import Base
 
 
 class Vacancy(Base):
@@ -33,7 +35,6 @@ class Vacancy(Base):
     source: Mapped[str | None] = mapped_column(Text, nullable=True)
     listing_context: Mapped[str | None] = mapped_column(Text, nullable=True)
     description_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    #content_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     added_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
         server_default=func.now(),
@@ -44,6 +45,8 @@ class Vacancy(Base):
         "UserMatch",
         back_populates="vacancy"
     )
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True) # 384 - розмірність конкретної моделі що використовується
+    embedding_model: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class User(Base):
@@ -78,7 +81,6 @@ class UserProfile(Base):
     )
     min_keyword_coverage: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0.2"))
     min_semantic_score: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0.42"))
-    #top_k: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("20"))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
@@ -91,6 +93,10 @@ class UserProfile(Base):
         "UserMatch",
         back_populates="profile"
     )
+    embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(384), nullable=True
+    )  # 384 - розмірність конкретної моделі що використовується
+    embedding_model: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class UserMatch(Base):
