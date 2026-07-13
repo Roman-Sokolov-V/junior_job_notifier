@@ -20,6 +20,17 @@ def get_vacancies_since_date(db: Session, since_ts: date) -> Sequence[Vacancy]:
     result = db.execute(stmt)
     return result.scalars().all()
 
+def create_vacancy(db: Session, data: dict) -> bool:
+    stmt = (
+        insert(Vacancy)
+        .values(**data)
+        .on_conflict_do_nothing(constraint="uq_vacancies_url_title")
+    )
+    result = db.execute(stmt)
+    row_count = result.rowcount
+    return row_count == 1
+
+
 def get_active_users_profiles(db: Session):
     stmt = (
         select(UserProfile)
