@@ -4,9 +4,9 @@ from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer, util
 
 
-from scrap_vac.db.crud import get_active_users_profiles, get_vacancies_since_date, get_last_run, set_last_run, save_match
-from scrap_vac.db.schemas import VacancyRow, ProfileRow, MatchCandidate
-from scrap_vac.db.session import get_db
+from db.crud import get_active_users_profiles, get_vacancies_since_date, get_last_run, set_last_run, save_match
+from db.schemas import VacancyRow, ProfileRow, MatchCandidate
+from db.session import get_db
 
 MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 STATE_KEY = "last_match_run_at"

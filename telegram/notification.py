@@ -4,8 +4,8 @@ import os
 import requests
 import dotenv
 
-from scrap_vac.db.session import get_db
-from scrap_vac.db.crud import get_not_notified, mark_notified
+from db.session import get_db
+from db.crud import get_not_notified, mark_notified
 
 logging.basicConfig(level=logging.DEBUG)
 

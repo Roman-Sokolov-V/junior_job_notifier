@@ -1,9 +1,8 @@
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
-from match_new_batch import filter_vacancies
-from scrap_vac.db.crud import get_vacancies_urls
-from scrap_vac.db.session import get_db
+from db.crud import get_vacancies_urls
+from db.session import get_db
 from scrap_vac.spiders.conversion_rate import ConversionRateSpider
 from scrap_vac.spiders.newxel import NewxelSpider
 from scrap_vac.spiders.sigma_technology import SigmaTechnologySpider
@@ -12,8 +11,6 @@ from scrap_vac.spiders.thingsboard import ThingsboardSpider
 from scrap_vac.spiders.breezy import BreezySpider
 from scrap_vac.spiders.gen_tech import GenTechSpider
 from scrap_vac.spiders.tieto import TietoSpider
-from telegram.notification import start_notification
-
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -40,5 +37,5 @@ def main():
 
 if __name__ == '__main__':
     main()
-    filter_vacancies()
-    start_notification()
+    # filter_vacancies()
+    # start_notification()

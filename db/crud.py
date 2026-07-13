@@ -6,8 +6,8 @@ from sqlalchemy import select, Row, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.sql import func
 
-from scrap_vac.db.schemas import ProfileRow
-from scrap_vac.db.models import Vacancy, UserProfile, User, MatcherState, UserMatch
+from db.schemas import ProfileRow
+from db.models import Vacancy, UserProfile, User, MatcherState, UserMatch
 
 
 

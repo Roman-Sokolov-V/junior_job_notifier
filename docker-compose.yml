@@ -40,11 +40,6 @@ services:
     environment:
       DATABASE_URL: postgresql://scraper:scraper@db:5432/vacancies
     command: ["uv", "run", "run.py"]
-    # Optional: copy .env.docker.example → .env.docker and use:
-    #   docker compose --env-file .env.docker up
-    # Override for one-off commands, e.g.:
-    #   docker compose run --rm app uv run scrapy crawl breezy -O /tmp/out.csv
-    # Default: migrations + run.py
 
 volumes:
   pgdata:
