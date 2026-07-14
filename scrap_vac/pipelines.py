@@ -61,19 +61,21 @@ from db.session import create_engine_from_url, create_session_factory, get_db
 class PgvectorPipeline:
     """ Збереження результатів в бд з ембендінгом"""
 
-    def __init__(self, ai_model_name: str | None) -> None:
+    def __init__(self, ai_model_name: str | None, model: SentenceTransformer) -> None:
         self.ai_model_name = ai_model_name
+        self.model = model
 
     @classmethod
     def from_crawler(cls, crawler):
         return cls(
-            ai_model_name=crawler.settings.get("AI_MODEL_NAME")
+            ai_model_name=crawler.settings.get("AI_MODEL_NAME"),
+            model=crawler.settings.get("AI_MODEL_INSTANCE"),
         )
 
     def open_spider(self, spider):
         if not self.ai_model_name:
             raise NotConfigured("AI_MODEL_NAME is not set.")
-        self.model = SentenceTransformer(self.ai_model_name)
+        #self.model = SentenceTransformer(self.ai_model_name)
 
     def process_item(self, item, spider):
         description_text = item.get("description_text", "") or ""
@@ -95,3 +97,4 @@ class PgvectorPipeline:
             item["embedding_model"] = self.ai_model_name
             return item
         raise DropItem(f"URL+Description already exists in db: {item}")
+

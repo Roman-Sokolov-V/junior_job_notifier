@@ -34,7 +34,7 @@ class Vacancy(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[str | None] = mapped_column(Text, nullable=True)
     listing_context: Mapped[str | None] = mapped_column(Text, nullable=True)
-    description_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description_text: Mapped[str | None] = mapped_column(Text, nullable=True) # todo change to False
     added_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
         server_default=func.now(),
@@ -79,7 +79,7 @@ class UserProfile(Base):
     exclude_keywords: Mapped[list[Any]] = mapped_column(
         JSONB, nullable=False, server_default=text("'[]'::jsonb")
     )
-    min_keyword_coverage: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0.2"))
+    #min_keyword_coverage: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0.2"))
     min_semantic_score: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0.42"))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(
@@ -97,6 +97,10 @@ class UserProfile(Base):
         Vector(384), nullable=True
     )  # 384 - розмірність конкретної моделі що використовується
     embedding_model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_matched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=False),
+        server_default=text("'1970-01-01 00:00:00'"),
+    )
 
 
 class UserMatch(Base):
@@ -109,10 +113,10 @@ class UserMatch(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     profile_id: Mapped[int] = mapped_column(ForeignKey("user_profiles.id", ondelete="CASCADE"), nullable=False)
     vacancy_id: Mapped[int] = mapped_column(ForeignKey("vacancies.id", ondelete="CASCADE"), nullable=False)
-    keyword_coverage: Mapped[float] = mapped_column(Float, nullable=False)
-    semantic_score: Mapped[float] = mapped_column(Float, nullable=False)
-    combined_score: Mapped[float] = mapped_column(Float, nullable=False)
-    reason_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    #keyword_coverage: Mapped[float] = mapped_column(Float, nullable=False)
+    semantic_score: Mapped[float] = mapped_column(Float, nullable=True) # change nullable -> true
+    #combined_score: Mapped[float] = mapped_column(Float, nullable=False)
+    #reason_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     notified: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
@@ -123,7 +127,7 @@ class UserMatch(Base):
     vacancy: Mapped["Vacancy"] = relationship("Vacancy", back_populates="matches")
     profile: Mapped["UserProfile"] = relationship("UserProfile", back_populates="matches")
 
-
+#todo видалити наступне MatcherState переніс логіку отримання останнього матчингу в UserProfile
 class MatcherState(Base):
     __tablename__ = "matcher_state"
 

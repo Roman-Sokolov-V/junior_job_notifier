@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from pgvector import Vector
+
 
 @dataclass
 class VacancyRow:
@@ -11,6 +13,8 @@ class VacancyRow:
     listing_context: str
     description_text: str
     added_at: datetime
+    embedding: Vector | None
+    embedding_model: str | None
 
     @property
     def full_text(self) -> str:
@@ -19,15 +23,26 @@ class VacancyRow:
 
 
 @dataclass
+class VacancyIdRow:
+    id: int
+
+
+@dataclass
 class ProfileRow:
+    def __init__(self):
+        self.last_matched_at = None
+
     id: int
     user_id: int
     name: str
     query_text: str
     include_keywords: list[str]
     exclude_keywords: list[str]
-    min_keyword_coverage: float
     min_semantic_score: float
+    embedding: Vector | None
+    embedding_model: str | None
+    last_matched_at: datetime
+
 
 
 @dataclass
