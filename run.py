@@ -1,11 +1,12 @@
 import logging
+from datetime import datetime, timedelta
 
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 from sentence_transformers import SentenceTransformer
 
 from common_settings import setup_logging, current_model_name
-from db.crud import get_vacancies_urls
+from db.crud import get_vacancies_urls, mark_urls_as_seen, delete_vacancies_not_seen_since, get_last_run, create_state
 from db.session import get_db
 from filter.matching import filter_vacancies
 from scrap_vac.spiders.conversion_rate import ConversionRateSpider
@@ -29,9 +30,12 @@ def create_ai_model(model_name: str) -> SentenceTransformer:
 
 def main(model: SentenceTransformer):
     settings = get_project_settings()
-    settings["AI_MODEL_INSTANCE"] = model
     with get_db() as db:
-        settings["EXISTING_URLS"] = set(get_vacancies_urls(db))
+        existing_urls = set(get_vacancies_urls(db))
+
+    settings["EXISTING_URLS"] = existing_urls
+    settings["SEEN_EXISTING_URLS"] = set()
+    settings["AI_MODEL_INSTANCE"] = model
 
     process = CrawlerProcess(settings)
 
@@ -45,12 +49,27 @@ def main(model: SentenceTransformer):
     process.crawl(SigmaTechnologySpider)
     process.start()
 
+    seen_existing_urls = settings["SEEN_EXISTING_URLS"]
+
+    with get_db() as db:
+        # оновлюємо last_seen_at для тих, що реально зустрілись
+        mark_urls_as_seen(db, seen_existing_urls)
+
+        now = datetime.now()
+        stale_cutoff = now - timedelta(days=7)
+        state = get_last_run(db)
+        if state is None:
+            create_state(db)
+        else:
+            if state.updated_at > now - timedelta(days=3):
+                # видаляємо тільки ті, що не бачились довше певного порогу враховуючи можливі перерви в запуску
+                delete_vacancies_not_seen_since(db, stale_cutoff)
+            state.updated_at = now
 
 if __name__ == '__main__':
     setup_logging()
     logger = logging.getLogger(__name__)
     model = create_ai_model(current_model_name)
-    #main(model)
+    main(model)
     filter_vacancies(model)
-    #start_notification()
-#todo реалізувати видалення застарілих вакансій
+    start_notification()

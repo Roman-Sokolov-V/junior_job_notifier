@@ -102,8 +102,11 @@ class ScrapVacDownloaderMiddleware:
 
 
 class SkipExistingUrlsMiddleware:
-    """Пропуск скрапінгу вакансій які вже є у списку існуючих"""
+    """Пропуск скрапінгу вакансій які вже є у списку існуючих,
+    з трекінгом того, які саме existing URLs зустрілись під час цього прогону."""
     def process_request(self, request, spider):
         existing_urls = spider.settings.get("EXISTING_URLS", set())
+        seen_existing_urls = spider.settings.get("SEEN_EXISTING_URLS")
         if request.url in existing_urls:
+            seen_existing_urls.add(request.url)
             raise IgnoreRequest(f"URL already exists: {request.url}")

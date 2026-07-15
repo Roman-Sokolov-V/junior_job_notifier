@@ -62,12 +62,14 @@ def filter_vacancies(model: SentenceTransformer | None) -> None:
 
         logger.info("Updated profiles.embeddings: {}, vacancies.embeddings: {}".format(updated_profiles, updated_vacancies))
         profiles: Sequence[UserProfile] = get_active_users_profiles(db)
+        logger.info("Знайдено профайлів {}".format(len(profiles)))
         if not profiles:
             logger.info("No active profiles in user_profiles. Nothing to process.")
             return
         num_matches = 0
         for profile in profiles:
             vacancies_id: Sequence[int] = get_vac_ids_since_date(db, profile.last_matched_at)
+            logger.info("Нових вакансій для матчингу {}".format(len(vacancies_id)))
             if not vacancies_id:
                 continue
 
