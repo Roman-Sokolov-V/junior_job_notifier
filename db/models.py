@@ -13,12 +13,14 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
-    text,
+    text, CheckConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from scrap_vac.db.base import Base
+from pgvector.sqlalchemy import Vector
+
+from db.base import Base
 
 
 class Vacancy(Base):
@@ -32,8 +34,7 @@ class Vacancy(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[str | None] = mapped_column(Text, nullable=True)
     listing_context: Mapped[str | None] = mapped_column(Text, nullable=True)
-    description_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    #content_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description_text: Mapped[str | None] = mapped_column(Text, nullable=True) # todo change to False
     added_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
         server_default=func.now(),
@@ -43,6 +44,11 @@ class Vacancy(Base):
     matches: Mapped[list["UserMatch"]] = relationship(
         "UserMatch",
         back_populates="vacancy"
+    )
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True) # 384 - розмірність конкретної моделі що використовується
+    embedding_model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=False), server_default=func.now(), nullable=False
     )
 
 
@@ -76,9 +82,7 @@ class UserProfile(Base):
     exclude_keywords: Mapped[list[Any]] = mapped_column(
         JSONB, nullable=False, server_default=text("'[]'::jsonb")
     )
-    min_keyword_coverage: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0.2"))
     min_semantic_score: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0.42"))
-    #top_k: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("20"))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
@@ -90,6 +94,14 @@ class UserProfile(Base):
     matches: Mapped[list["UserMatch"]] = relationship(
         "UserMatch",
         back_populates="profile"
+    )
+    embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(384), nullable=True
+    )  # 384 - розмірність конкретної моделі що використовується
+    embedding_model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_matched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=False),
+        server_default=text("'1970-01-01 00:00:00'"),
     )
 
 
@@ -103,10 +115,7 @@ class UserMatch(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     profile_id: Mapped[int] = mapped_column(ForeignKey("user_profiles.id", ondelete="CASCADE"), nullable=False)
     vacancy_id: Mapped[int] = mapped_column(ForeignKey("vacancies.id", ondelete="CASCADE"), nullable=False)
-    keyword_coverage: Mapped[float] = mapped_column(Float, nullable=False)
-    semantic_score: Mapped[float] = mapped_column(Float, nullable=False)
-    combined_score: Mapped[float] = mapped_column(Float, nullable=False)
-    reason_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    semantic_score: Mapped[float] = mapped_column(Float, nullable=True)
     notified: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
@@ -120,9 +129,10 @@ class UserMatch(Base):
 
 class MatcherState(Base):
     __tablename__ = "matcher_state"
-
-    key: Mapped[str] = mapped_column(Text, primary_key=True)
-    value: Mapped[str] = mapped_column(Text, nullable=False)
+    __table_args__ = (
+        CheckConstraint('id = 1', name='only_one_row_constraint'),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
         server_default=func.now(),

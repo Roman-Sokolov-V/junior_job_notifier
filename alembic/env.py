@@ -11,8 +11,8 @@ from sqlalchemy import engine_from_config, pool
 
 load_dotenv()
 
-from scrap_vac.db.base import Base
-import scrap_vac.db.models  # noqa: F401  — register models on Base.metadata
+from db import Base
+import db.models  # noqa: F401  — register models on Base.metadata
 
 config = context.config
 if config.config_file_name is not None:

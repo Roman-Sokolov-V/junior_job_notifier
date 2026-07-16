@@ -71,7 +71,8 @@ DOWNLOADER_MIDDLEWARES = {
 
 # AI-режим: повне збереження вакансій для матчингу; Telegram після matcher (опційно).
 ITEM_PIPELINES = {
-    "scrap_vac.pipelines.PostgresPipeline": 300,
+    #"scrap_vac.pipelines.PostgresPipeline": 300,
+    "scrap_vac.pipelines.PgvectorPipeline": 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -137,3 +138,5 @@ PLAYWRIGHT_LAUNCH_OPTIONS = {
 #####################################################################
 DATABASE_URL = os.getenv("DATABASE_URL")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
+AI_MODEL_NAME = os.getenv("AI_MODEL_NAME")

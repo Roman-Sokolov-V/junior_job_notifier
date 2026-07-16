@@ -621,6 +621,7 @@ dependencies = [
     { name = "alembic" },
     { name = "dotenv" },
     { name = "langdetect" },
+    { name = "pgvector" },
     { name = "psycopg2-binary" },
     { name = "pyyaml" },
     { name = "scrapy" },
@@ -634,6 +635,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.18.0" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "langdetect", specifier = ">=1.0.9" },
+    { name = "pgvector", specifier = ">=0.5.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.12" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "scrapy", specifier = ">=2.15.2" },
@@ -1081,6 +1083,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/91/c8/4ace3a5c61e39ca21734a5715d0e076eea6200dd8daea2a5b99452f5a0d6/parsel-1.11.0.tar.gz", hash = "sha256:5925fe087eb16fc404a7ed91e31e2c1e2a9b230da4b64f34d81358c0d0e27e88", size = 106849, upload-time = "2026-01-29T07:19:23.388Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/08/23/4e0dae5e5bee14aea26dba003a682e621563451a20f751ed985810f818b6/parsel-1.11.0-py3-none-any.whl", hash = "sha256:bda82575df1774dd64e1c1396163f3cadb3e383e0f8080d43d45fa6705355daa", size = 14176, upload-time = "2026-01-29T07:19:22.255Z" },
+]
+
+[[package]]
+name = "pgvector"
+version = "0.5.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a7/ec/6eb80aebc728200f95229219882994c1b0585b956ca47da5edb9d062627a/pgvector-0.5.0.tar.gz", hash = "sha256:07a9dcf735696879406983afc6eba9a787cef7c0cf6c367ca1a5779f036dee74", size = 35170, upload-time = "2026-07-06T18:27:27.767Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5c/e4/a5573f2c579ca9ad133293bfb624148ba0893674ca4a6eeec85ced9a6a09/pgvector-0.5.0-py3-none-any.whl", hash = "sha256:fedc9800894e6da2be51358d7b7c574bf34f247ca741a5a09513622135f5964f", size = 30958, upload-time = "2026-07-06T18:27:26.797Z" },
 ]
 
 [[package]]
