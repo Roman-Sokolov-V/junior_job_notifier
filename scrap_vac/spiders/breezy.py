@@ -10,7 +10,7 @@ class BreezySpider(scrapy.Spider):
 
     name = "breezy"
     allowed_domains = ["gen-tech.breezy.hr"]
-    start_urls = ["https://gen-tech.breezy.hr/?&department=Development#positions"]
+    start_urls = ["https://gen-tech.breezy.hr/"]
 
 
     def parse(self, response):
