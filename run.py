@@ -10,6 +10,7 @@ from db.crud import get_vacancies_urls, mark_urls_as_seen, delete_vacancies_not_
 from db.session import get_db
 from filter.matching import filter_vacancies
 from scrap_vac.spiders.conversion_rate import ConversionRateSpider
+from scrap_vac.spiders.epam import EpamSpider
 from scrap_vac.spiders.newxel import NewxelSpider
 from scrap_vac.spiders.sigma_technology import SigmaTechnologySpider
 from scrap_vac.spiders.star_global import StarGlobalSpider
@@ -47,6 +48,7 @@ def main(model: SentenceTransformer):
     process.crawl(NewxelSpider)
     process.crawl(ConversionRateSpider)
     process.crawl(SigmaTechnologySpider)
+    process.crawl(EpamSpider)
     process.start()
 
     seen_existing_urls = settings["SEEN_EXISTING_URLS"]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import enum
 from datetime import datetime
 from typing import Any
 
@@ -13,7 +14,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
-    text, CheckConstraint,
+    text, CheckConstraint, Enum,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -22,6 +23,14 @@ from pgvector.sqlalchemy import Vector
 
 from db.base import Base
 
+
+
+class SeniorityEnum(enum.Enum):
+    N = "none"
+    J = "junior"
+    SJ = "strong junior"
+    M = "middle"
+    S = "senior"
 
 class Vacancy(Base):
     """Vacancies scraped from job sites (classic fields always set; AI fields optional)."""
@@ -33,8 +42,13 @@ class Vacancy(Base):
     url: Mapped[str] = mapped_column(Text, nullable=False)
     title: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[str | None] = mapped_column(Text, nullable=True)
+    embedding_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    requirements: Mapped[str | None] = mapped_column(Text, nullable=True)
+    nice_to_have: Mapped[str | None] = mapped_column(Text, nullable=True)
+    experience: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    seniority: Mapped[SeniorityEnum | None] = mapped_column(Enum(SeniorityEnum), nullable=True)
     listing_context: Mapped[str | None] = mapped_column(Text, nullable=True)
-    description_text: Mapped[str | None] = mapped_column(Text, nullable=True) # todo change to False
+    description_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     added_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
         server_default=func.now(),
