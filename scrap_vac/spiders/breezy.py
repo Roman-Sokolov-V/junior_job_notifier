@@ -13,9 +13,9 @@ class BreezySpider(scrapy.Spider):
     start_urls = ["https://gen-tech.breezy.hr/?&department=Development#positions"]
 
 
-    def start_requests(self):
-        for url in self.start_urls:
-            yield scrapy.Request(url=url, callback=self.parse)
+    # async def start(self):
+    #     for url in self.start_urls:
+    #         yield scrapy.Request(url=url, callback=self.parse)
 
     def parse(self, response):
         # Grab all vacancy cards from list page.
@@ -41,20 +41,18 @@ class BreezySpider(scrapy.Spider):
 
     def parse_detail_page(self, response):
         self.logger.info("detail_page: %s", response.url)
-        # Collect as much clean text as possible from detail page.
-        # This text can be in English/Ukrainian and will be analyzed downstream.
+
         description_text = self._extract_description(response)
 
-        # IMPORTANT:
-        # We intentionally do NOT filter by "junior/python" inside spider anymore.
-        # Spider responsibility = collect data, AI matcher responsibility = decide fit.
+
         yield {
             "source": "breezy",
-            "title": response.meta.get("title", ""),
+            "title": response.meta.get("title", "No Title"),
             "url": response.url,
-            # Optional short context from the listing card (may be empty, depends on source/layout).
             "listing_context": response.meta.get("listing_context", ""),
             "description_text": description_text,
+            # через те що на цьому ресурсі нема сталої структури
+            # неможливо відокремити текст для embedding_text
         }
 
     @staticmethod
