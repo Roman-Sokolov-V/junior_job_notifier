@@ -71,7 +71,6 @@ DOWNLOADER_MIDDLEWARES = {
 
 # AI-режим: повне збереження вакансій для матчингу; Telegram після matcher (опційно).
 ITEM_PIPELINES = {
-    #"scrap_vac.pipelines.PostgresPipeline": 300,
     "scrap_vac.pipelines.PgvectorPipeline": 300,
 }
 
