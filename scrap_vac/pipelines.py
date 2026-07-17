@@ -69,13 +69,18 @@ class PgvectorPipeline:
     def from_crawler(cls, crawler):
         return cls(
             ai_model_name=crawler.settings.get("AI_MODEL_NAME"),
-            model=crawler.settings.get("AI_MODEL_INSTANCE"),
+            model=crawler.settings.get(
+                "AI_MODEL_INSTANCE",
+                SentenceTransformer(crawler.settings.get("AI_MODEL_NAME"))
+            ),
         )
 
     def open_spider(self, spider):
         if not self.ai_model_name:
             raise NotConfigured("AI_MODEL_NAME is not set.")
-        #self.model = SentenceTransformer(self.ai_model_name)
+        if not self.model:
+            raise NotConfigured("model is not set.")
+
 
     def process_item(self, item, spider):
         description_text = item.get("description_text", "") or ""

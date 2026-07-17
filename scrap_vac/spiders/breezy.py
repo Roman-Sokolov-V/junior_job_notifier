@@ -13,10 +13,6 @@ class BreezySpider(scrapy.Spider):
     start_urls = ["https://gen-tech.breezy.hr/?&department=Development#positions"]
 
 
-    # async def start(self):
-    #     for url in self.start_urls:
-    #         yield scrapy.Request(url=url, callback=self.parse)
-
     def parse(self, response):
         # Grab all vacancy cards from list page.
         boxes = response.css(".position.transition")
@@ -43,6 +39,7 @@ class BreezySpider(scrapy.Spider):
         self.logger.info("detail_page: %s", response.url)
 
         description_text = self._extract_description(response)
+        self.logger.info("description_text: %s", description_text)
 
 
         yield {
