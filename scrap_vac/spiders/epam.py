@@ -9,7 +9,7 @@ class EpamSpider(MixinTextEditor, scrapy.Spider):
     allowed_domains = ["careers.epam.com"]
     start_urls = ["https://careers.epam.com/ua/jobs/ukraine"]
 
-    async def start(self):
+    def start_requests(self):
         self.logger.info(f"Starting {self.name}")
         yield scrapy.Request(
             url= 'https://careers.epam.com/api/jobs/v2/search/'
