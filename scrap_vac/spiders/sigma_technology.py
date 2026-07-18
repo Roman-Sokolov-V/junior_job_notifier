@@ -1,10 +1,9 @@
-from datetime import datetime
 import scrapy
 
-from scrap_vac.spiders.common import MixinTextEditor, MixinLangDetect
+from scrap_vac.spiders.common import CommonSpider
 
 
-class SigmaTechnologySpider(MixinLangDetect, MixinTextEditor, scrapy.Spider):
+class SigmaTechnologySpider(CommonSpider):
     name = "sigma_technology"
     allowed_domains = ["sigmatechnology.com"]
     start_urls = ["https://sigmatechnology.com/open-positions/"]
@@ -49,19 +48,16 @@ class SigmaTechnologySpider(MixinLangDetect, MixinTextEditor, scrapy.Spider):
             country = vacancy.get("country", "")
             cities = vacancy.get("cities", "")
             full_description = f"Summary: {description}.\n Qualifications: {qualifications}.\n Experience: {experience}.\n Offer: {offer} "
+            requirements = ((qualifications + " ") if qualifications else "") + experience
+
             yield {
                 "source": self.name,
-                "title": vacancy.pop("title"),
+                "title": vacancy.get("title"),
                 "url": vacancy.get("link"),
                 "description": vacancy.get("description") ,
                 "description_text": full_description,
                 "listing_context": f"Country: {country}, Cities: {cities}",
+                "requirements": requirements if requirements else None,
+                "embedding_text": qualifications if qualifications  else None,
+                "country": vacancy.get("country", None),
             }
-
-
-    @staticmethod
-    def parse_pub_date(date_str: str):
-        try:
-            return datetime.strptime(date_str, "%d %B %Y")
-        except (ValueError, TypeError):
-            return None
