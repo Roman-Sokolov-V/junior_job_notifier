@@ -1,23 +1,23 @@
 import scrapy
 
-from scrap_vac.spiders.common import CommonSpider
+from scrap_vac.spiders.common import CommonSpider, MixinLangDetect
 
 
-class SigmaTechnologySpider(CommonSpider):
+class SigmaTechnologySpider(MixinLangDetect, CommonSpider):
     name = "sigma_technology"
     allowed_domains = ["sigmatechnology.com"]
     start_urls = ["https://sigmatechnology.com/open-positions/"]
 
-    async def start(self):
+    def start_requests(self):
         yield scrapy.Request(
-            #url='https://sigmatechnology.com/wp-json/sigma_profiler/positions?query=&sort=publicationDate&lang=en&level=all&company%5B%5D=Sigma%20Technology%20China&company%5B%5D=Sigma%20Technology%20Consulting&company%5B%5D=Sigma%20Technology%20Development&company%5B%5D=Sigma%20Technology%20Group&company%5B%5D=Sigma%20Technology%20Hungary&company%5B%5D=Sigma%20Technology%20Information&company%5B%5D=Sigma%20Technology%20Mid&company%5B%5D=Sigma%20Technology%20Solutions&company%5B%5D=Sigma%20Technology%20Systems&company%5B%5D=Sigma%20Technology%20USA&company%5B%5D=Sigma%20Technology&company%5B%5D=Sigma%20Technology%20Transformation&company%5B%5D=Sigma%20Technology%20Insights&company%5B%5D=Sigma%20Technology%20Digital%20%26%20Cloud%20Solutions&company%5B%5D=Sigma%20Technology%20Innovation&company%5B%5D=Sigma%20Technology%20Norway&company%5B%5D=Sigma%20Technology%20Embedded%20Solutions&company%5B%5D=Sigma%20Technology%20IT%20Infra&company%5B%5D=Sigma%20Technology%20Cloud&company%5B%5D=Sigma%20Technology%20Tech%20Network&company%5B%5D=Sigma%20Technology%20Software%20Solutions&company%5B%5D=Sigma%20Technology%20Informatics%20Solutions&company%5B%5D=Sigma%20Technology%20Experience&company%5B%5D=Sigma%20Technology%20Digital%20Solutions&company%5B%5D=Sigma%20Technology%20Tech%20House&company%5B%5D=Sigma%20Technology%20North%20Solutions&company%5B%5D=Sigma%20Technology%20Embedded%20Network&company%5B%5D=Sigma%20Technology%20Systems%20Norway&company%5B%5D=Sigma%20Technology%20ERP%20Advisory&company%5B%5D=Sigma%20Technology%20Engineering&company%5B%5D=Sigma%20Technology%20Elevate&competence=&country=&city=',
+            url='https://sigmatechnology.com/wp-json/sigma_profiler/positions?query=&sort=publicationDate&lang=en&level=all&company%5B%5D=Sigma%20Technology%20China&company%5B%5D=Sigma%20Technology%20Consulting&company%5B%5D=Sigma%20Technology%20Development&company%5B%5D=Sigma%20Technology%20Group&company%5B%5D=Sigma%20Technology%20Hungary&company%5B%5D=Sigma%20Technology%20Information&company%5B%5D=Sigma%20Technology%20Mid&company%5B%5D=Sigma%20Technology%20Solutions&company%5B%5D=Sigma%20Technology%20Systems&company%5B%5D=Sigma%20Technology%20USA&company%5B%5D=Sigma%20Technology&company%5B%5D=Sigma%20Technology%20Transformation&company%5B%5D=Sigma%20Technology%20Insights&company%5B%5D=Sigma%20Technology%20Digital%20%26%20Cloud%20Solutions&company%5B%5D=Sigma%20Technology%20Innovation&company%5B%5D=Sigma%20Technology%20Norway&company%5B%5D=Sigma%20Technology%20Embedded%20Solutions&company%5B%5D=Sigma%20Technology%20IT%20Infra&company%5B%5D=Sigma%20Technology%20Cloud&company%5B%5D=Sigma%20Technology%20Tech%20Network&company%5B%5D=Sigma%20Technology%20Software%20Solutions&company%5B%5D=Sigma%20Technology%20Informatics%20Solutions&company%5B%5D=Sigma%20Technology%20Experience&company%5B%5D=Sigma%20Technology%20Digital%20Solutions&company%5B%5D=Sigma%20Technology%20Tech%20House&company%5B%5D=Sigma%20Technology%20North%20Solutions&company%5B%5D=Sigma%20Technology%20Embedded%20Network&company%5B%5D=Sigma%20Technology%20Systems%20Norway&company%5B%5D=Sigma%20Technology%20ERP%20Advisory&company%5B%5D=Sigma%20Technology%20Engineering&company%5B%5D=Sigma%20Technology%20Elevate&competence=&country=&city=',
             # вище те що показує сайт, нижче прибрані фільтри за компаніями, вакансій більше, хоча можливо
             # не всі будуть релевантні, хто зна чому на сайті застосовані ті фільтри
-            url=(
-                'https://sigmatechnology.com/wp-json/sigma_profiler/positions'
-                '?query=&sort=publicationDate&lang=en&level=all'
-                '&competence=&country=&city='
-            ),
+            # url=(
+            #     'https://sigmatechnology.com/wp-json/sigma_profiler/positions'
+            #     '?query=&sort=publicationDate&lang=en&level=all'
+            #     '&competence=&country=&city='
+            # ),
             headers={
                 "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0",
                 "Accept": "*/*",
@@ -30,7 +30,7 @@ class SigmaTechnologySpider(CommonSpider):
             callback=self.parse,
         )
 
-    async def parse(self, response):
+    def parse(self, response):
         data = response.json()  # або json.loads(response.text)
         total = data.get("total")
         self.logger.info(total)
