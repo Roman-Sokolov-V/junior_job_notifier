@@ -20,7 +20,6 @@ class ThingsboardSpider(MixinTextEditor, scrapy.Spider):
             all_raw_text = response.xpath('//body//text()').getall()
 
         all_clean_text = "\n".join([t.strip() for t in all_raw_text if t.strip()])
-        requirements_text = response.css(".job-section").xpath('//h3[text()="Requirements:"]').getall()
         xpath_query = (
             '//div[contains(@class, "job-section")]'
             '[.//*[self::h2 or self::h3][contains(translate(text(), "REQUIMNTS", "requimnts"), "requirements")]]'
