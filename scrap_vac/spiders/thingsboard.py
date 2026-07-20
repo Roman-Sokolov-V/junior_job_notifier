@@ -45,5 +45,6 @@ class ThingsboardSpider(MixinTextEditor, scrapy.Spider):
             "description_text": all_clean_text,
             "requirements": requirements,
             "embedding_text": embedding_text,
+            "nice_to_have": nice_to_have,
         }
 
