@@ -60,10 +60,10 @@ class EpamSpider(MixinTextEditor, scrapy.Spider):
     def parse_json_data(self, response):
 
         data = response.json()["data"]
-        pprint(data)
-        pprint(data.keys())
+        # pprint(data)
+        # pprint(data.keys())
         jobs = response.json()["data"]["jobs"]
-        pprint(jobs)
+        #pprint(jobs)
         skipped_counter = 0
         scrapped_counter = 0
         for job in jobs:
@@ -130,16 +130,17 @@ class EpamSpider(MixinTextEditor, scrapy.Spider):
                     description_list.append(f"disclaimers: {disclaimer_content}")
             description = "\n\n".join(description_list)
             embedding_text = " ".join(embedding_list)
+            seniority = job.get("seniority")
             scrapped_counter += 1
             yield {
                 "source": self.name,
                 "title": title,
                 "url": url,
-                #"description_text": description,
-                "description_text": embedding_text, # todo change
+                "description_text": description,
                 "embedding_text": embedding_text,
                 "requirements": requirements,
                 "nice_to_have": nice_to_have,
+                "seniority": str(seniority) if seniority else None,
             }
 
 
