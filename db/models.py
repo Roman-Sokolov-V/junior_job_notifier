@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import enum
 from datetime import datetime
 from typing import Any
 
@@ -14,7 +13,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
-    text, CheckConstraint, Enum,
+    text, CheckConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship

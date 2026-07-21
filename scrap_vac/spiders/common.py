@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import scrapy
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from langdetect import detect, LangDetectException
@@ -40,6 +42,14 @@ class MixinTextEditor():
         sel = Selector(text=html)
         texts = sel.xpath("//text()").getall()
         return "\n".join(t.strip() for t in texts if t.strip())
+
+    @staticmethod
+    def parse_pub_date(date_str: str):
+        try:
+            return datetime.strptime(date_str, "%d %B %Y")
+        except (ValueError, TypeError):
+            return None
+
 
 class MixinLangDetect():
     @staticmethod
