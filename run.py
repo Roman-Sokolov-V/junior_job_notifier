@@ -1,4 +1,15 @@
+import os
+
+# Обмежуємо внутрішню паралелізацію CPU-бібліотек (OpenMP/MKL/tokenizers),
+# які використовує sentence-transformers. Без цього на завершенні процесу
+# лишались "leaked semaphore" від пулу воркерів і скрипт міг зависати
+# перед виходом. На CI (2 ядра) паралелізація й так майже не дає виграшу.
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["MKL_NUM_THREADS"] = "1"
+
 import logging
+
 from datetime import datetime, timedelta
 
 from scrapy.crawler import CrawlerProcess
@@ -24,6 +35,7 @@ from dotenv import load_dotenv
 from telegram.notification import start_notification
 
 load_dotenv()
+
 
 def create_ai_model(model_name: str) -> SentenceTransformer:
     model = SentenceTransformer(model_name)
@@ -71,7 +83,12 @@ def main(model: SentenceTransformer):
 if __name__ == '__main__':
     setup_logging()
     logger = logging.getLogger(__name__)
-    model = create_ai_model(current_model_name)
-    main(model)
-    filter_vacancies(model)
-    start_notification()
+    try:
+        model = create_ai_model(current_model_name)
+        main(model)
+        filter_vacancies(model)
+        start_notification()
+    finally:
+        import gc
+        del model
+        gc.collect()
