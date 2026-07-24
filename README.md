@@ -29,7 +29,7 @@ This repository is responsible for scraping and matching only — it has no user
 - **Per-User Search Profiles:** Each registered user can create an unlimited number of search profiles, each combining:
   - **Include keywords** — a vacancy's title must contain at least one of these to pass.
   - **Exclude keywords** — a vacancy's title is rejected if it contains any of these.
-  - **AI semantic matching** — a free-form text prompt (`query_text`) used to semantically match vacancies that survive the keyword filters, via an LLM.
+  - **AI semantic matching** — a `query_text` field used to semantically match vacancies that survive the keyword filters, via vector embeddings (`sentence-transformers` + **pgvector**), not an LLM. For best results, this should be a list of technologies/skills rather than free-form text: matching is currently performed against a *fragment* of the vacancy (essentially `requirements` + `nice_to_have`), not the full description, due to the embedding model's limited context window — so a natural-language prompt tends to match less precisely than a concise stack listing.
 
   All three criteria are optional, but at least one must be set per profile.
 - **Bot-Driven Registration:** Users register, create/edit/delete profiles, and browse matched vacancies entirely through [junior_job_notifier_bot](https://github.com/Roman-Sokolov-V/junior_job_notifier_bot) — no manual database entry required.
@@ -143,7 +143,7 @@ Go to your repository on GitHub: Settings ➡️ Secrets and variables ➡️ Ac
 Click **New repository secret** and add the following keys:
 
 - `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_CHAT_ID`
+- `AI_MODEL_NAME`
 - `DATABASE_URL`
 
 **Triggering:** Check the Actions tab on GitHub to see execution logs, test manually via **Run workflow**, or leave it to run autonomously according to the cron schedule.
@@ -154,13 +154,15 @@ Click **New repository secret** and add the following keys:
 
 We are actively working on expanding and improving the scraper. The following milestones are planned for future releases:
 
-1. **🧭 Vector Search Migration (in progress):** Move semantic matching from in-memory `sentence-transformers` comparisons to database-native vector search using **pgvector**. Vacancy and profile embeddings will be computed once (at scrape/profile-creation time) and cached in Postgres, with similarity search and top-K ranking pushed down to SQL — cutting redundant embedding computation and enabling indexed nearest-neighbor lookups as the dataset grows.
+1. **✅ Vector Search Migration (done):** Semantic matching now runs database-native via **pgvector**, with vacancy embeddings computed once at scrape time and cached in Postgres, and similarity search/top-K ranking pushed down to SQL. Current limitation: due to the embedding model's small context window, matching is done against a fragment of the vacancy (`requirements` + `nice_to_have`) rather than the full description — see the caveat above.
 
-2. **🌐 Multi-Platform Expansion:** Continue adding new spiders to cover more individual companies' career pages.
+2. **🧠 LLM-Based Full-Text Matching:** Add an LLM-powered matching pass over the *entire* vacancy description (not just a fragment), to complement or replace the current embedding-fragment approach and remove the context-window limitation described above.
 
-3. **🎯 Semantic Resume Match Score:** Develop a custom matching system that compares scraped vacancy descriptions against a user's CV/Resume using vector embeddings, calculating a "Match Score (%)" to prioritize the best opportunities.
+3. **🌐 Multi-Platform Expansion:** Continue adding new spiders to cover more individual companies' career pages.
 
-4. **📝 Smart Vacancy Summarization:** Implement automated text summarization to condense long job descriptions into concise, bulleted core requirements (key skills, salary, tech stack) directly within the Telegram alert.
+4. **🎯 Semantic Resume Match Score:** Develop a custom matching system that compares scraped vacancy descriptions against a user's CV/Resume using vector embeddings, calculating a "Match Score (%)" to prioritize the best opportunities.
+
+5. **📝 Smart Vacancy Summarization:** Implement automated text summarization to condense long job descriptions into concise, bulleted core requirements (key skills, salary, tech stack) directly within the Telegram alert.
 
 ---
 
