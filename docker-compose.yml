@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:0.8.5-pg17-bookworm
     environment:
       POSTGRES_USER: scraper
       POSTGRES_PASSWORD: scraper
@@ -17,8 +17,6 @@ services:
 
   migrate:
     build: .
-    volumes:
-      - .:/app
     environment:
       DATABASE_URL: postgresql://scraper:scraper@db:5432/vacancies
     depends_on:
@@ -30,15 +28,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    volumes:
-      - .:/app
+#    volumes:
+#      - .:/app
     depends_on:
       db:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-    environment:
-      DATABASE_URL: postgresql://scraper:scraper@db:5432/vacancies
+    env_file:
+      - .env.docker
     command: ["uv", "run", "run.py"]
 
 volumes:
