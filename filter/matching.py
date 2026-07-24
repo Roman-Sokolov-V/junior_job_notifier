@@ -86,6 +86,7 @@ def filter_vacancies(model: SentenceTransformer | None) -> None:
 
             if profile.embedding:
                 # vacancy.embedding is not None
+                # long version
                 semantic_filtered_vacancies: Sequence[RowMapping] = load_semantic_matches_for_vacancies_id_list(db, profile, vacancies_id)
                 num_semantic_filtered_vacancies = len(semantic_filtered_vacancies)
                 logger.info(
@@ -122,6 +123,7 @@ def filter_vacancies(model: SentenceTransformer | None) -> None:
                 )
                 full_filtered_vacancies = keyword_filtered_vacancies_with_embedding + keyword_filtered_vacancies_no_embedding
                 num_filtered_vacancies = len(full_filtered_vacancies)
+                # # short version
                 # vacancies = load_semantic_matches_and_no_embedded_vacancies_from_id_list(db, profile, vacancies_id)
                 # logger.info(
                 #     "Знайдено %s вакансій для профіля %s",

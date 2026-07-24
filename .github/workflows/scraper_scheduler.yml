@@ -31,3 +31,4 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AI_MODEL_NAME: ${{ secrets.AI_MODEL_NAME }}
