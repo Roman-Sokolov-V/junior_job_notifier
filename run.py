@@ -92,6 +92,9 @@
 #         gc.collect()
 import os
 
+from scrap_vac.spiders.anderson import AndersonSpider
+from scrap_vac.spiders.gen_tech import GenTechSpider
+
 # Обмежуємо внутрішню паралелізацію CPU-бібліотек (OpenMP/MKL/tokenizers),
 # які використовує sentence-transformers. Без цього на завершенні процесу
 # лишались "leaked semaphore" від пулу воркерів і скрипт міг зависати
@@ -132,7 +135,6 @@ from filter.matching import filter_vacancies
 from scrap_vac.spiders.conversion_rate import ConversionRateSpider
 from scrap_vac.spiders.epam import EpamSpider
 from scrap_vac.spiders.newxel import NewxelSpider
-from scrap_vac.spiders.sigma_technology import SigmaTechnologySpider
 from scrap_vac.spiders.star_global import StarGlobalSpider
 from scrap_vac.spiders.thingsboard import ThingsboardSpider
 from scrap_vac.spiders.breezy import BreezySpider
@@ -158,8 +160,9 @@ LIGHT_SPIDERS = [
     ThingsboardSpider,
     StarGlobalSpider,
     ConversionRateSpider,
-    SigmaTechnologySpider,
     EpamSpider,
+    AndersonSpider,
+    GenTechSpider
 ]
 
 # Важкі spider'и (використовують playwright/Chromium) — запускаються по одному,
