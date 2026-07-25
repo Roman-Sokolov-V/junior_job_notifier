@@ -155,13 +155,13 @@ def create_ai_model(model_name: str) -> SentenceTransformer:
 # Легкі spider'и (без playwright/Chromium) — можна запускати паралельно,
 # вони не тримають окремих браузерних процесів і не дають різких стрибків пам'яті.
 LIGHT_SPIDERS = [
-    BreezySpider,
-    TietoSpider,
-    ThingsboardSpider,
-    StarGlobalSpider,
-    ConversionRateSpider,
-    EpamSpider,
-    AndersonSpider,
+    # BreezySpider,
+    # TietoSpider,
+    # ThingsboardSpider,
+    # StarGlobalSpider,
+    # ConversionRateSpider,
+    # EpamSpider,
+    # AndersonSpider,
     GenTechSpider
 ]
 
