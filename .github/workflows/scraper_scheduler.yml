@@ -30,11 +30,11 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+          key: playwright-chromium-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: uv run playwright install --with-deps firefox
+        run: uv run playwright install --with-deps chromium
 
       - name: Apply database migrations
         run: uv run alembic upgrade head
