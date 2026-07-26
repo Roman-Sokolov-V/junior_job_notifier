@@ -41,16 +41,17 @@ class NewxelSpider(MixinTextEditor, scrapy.Spider):
                 await button.click(timeout=3000, force=True)
                 await page.wait_for_timeout(1000)
             except PlaywrightTimeoutError as e:
-                self.logger.info(f"Кнопка не клікабельна / зникла {e}")
+                self.logger.debug(f"Кнопка не клікабельна / зникла {e}")
                 break
         content = await page.content()
         await page.close()
         sel = scrapy.Selector(text=content)
         items = sel.xpath('//div[@class="career-item"]')
+        self.logger.debug("----------------------------- Items found---%s", len(items))
         for item in items:
             href = item.css('a::attr(href)').extract_first()
             yield scrapy.Request(href, callback=self.parse_detail)
-            break
+
 
     def parse_detail(self, response):
         listing_context = self.extract_and_clean_all_text(response, "career-single-info")
