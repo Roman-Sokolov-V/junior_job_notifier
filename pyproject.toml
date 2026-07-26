@@ -16,4 +16,5 @@ dependencies = [
     "langdetect>=1.0.9",
     "pgvector>=0.5.0",
     "alembic-postgresql-enum>=1.10.0",
+    "html2text>=2025.4.15",
 ]
