@@ -92,9 +92,6 @@
 #         gc.collect()
 import os
 
-from scrap_vac.spiders.anderson import AndersonSpider
-from scrap_vac.spiders.gen_tech import GenTechSpider
-
 # Обмежуємо внутрішню паралелізацію CPU-бібліотек (OpenMP/MKL/tokenizers),
 # які використовує sentence-transformers. Без цього на завершенні процесу
 # лишались "leaked semaphore" від пулу воркерів і скрипт міг зависати
@@ -106,6 +103,7 @@ os.environ["MKL_NUM_THREADS"] = "1"
 import logging
 
 from datetime import datetime, timedelta
+
 
 from scrapy.utils.project import get_project_settings
 
@@ -132,20 +130,24 @@ from common_settings import setup_logging, current_model_name
 from db.crud import get_vacancies_urls, mark_urls_as_seen, delete_vacancies_not_seen_since, get_last_run, create_state
 from db.session import get_db
 from filter.matching import filter_vacancies
-from scrap_vac.spiders.conversion_rate import ConversionRateSpider
-from scrap_vac.spiders.epam import EpamSpider
-from scrap_vac.spiders.newxel import NewxelSpider
-from scrap_vac.spiders.star_global import StarGlobalSpider
-from scrap_vac.spiders.thingsboard import ThingsboardSpider
-from scrap_vac.spiders.breezy import BreezySpider
-from scrap_vac.spiders.tieto import TietoSpider
 
 from dotenv import load_dotenv
 
 from telegram.notification import start_notification
 
 load_dotenv()
-
+from scrap_vac.spiders import (
+    ConversionRateSpider,
+    EpamSpider,
+    NewxelSpider,
+    StarGlobalSpider,
+    ThingsboardSpider,
+    BreezySpider,
+    TietoSpider,
+    AndersonSpider,
+    GenTechSpider,
+    SvitlaSpider,
+)
 
 def create_ai_model(model_name: str) -> SentenceTransformer:
     model = SentenceTransformer(model_name)
@@ -155,14 +157,15 @@ def create_ai_model(model_name: str) -> SentenceTransformer:
 # Легкі spider'и (без playwright/Chromium) — можна запускати паралельно,
 # вони не тримають окремих браузерних процесів і не дають різких стрибків пам'яті.
 LIGHT_SPIDERS = [
-    # BreezySpider,
-    # TietoSpider,
-    # ThingsboardSpider,
-    # StarGlobalSpider,
-    # ConversionRateSpider,
-    # EpamSpider,
-    # AndersonSpider,
-    GenTechSpider
+    BreezySpider,
+    TietoSpider,
+    ThingsboardSpider,
+    StarGlobalSpider,
+    ConversionRateSpider,
+    EpamSpider,
+    AndersonSpider,
+    GenTechSpider,
+    SvitlaSpider,
 ]
 
 # Важкі spider'и (використовують playwright/Chromium) — запускаються по одному,
@@ -226,8 +229,8 @@ if __name__ == '__main__':
     try:
         model = create_ai_model(current_model_name)
         main(model)
-        filter_vacancies(model)
-        start_notification()
+        # filter_vacancies(model)
+        # start_notification()
     finally:
         import gc
         del model
