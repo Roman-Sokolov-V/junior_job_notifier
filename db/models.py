@@ -42,7 +42,7 @@ class Vacancy(Base):
     listing_context: Mapped[str | None] = mapped_column(Text, nullable=True)
     description_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     added_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=False),
+        DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
     )
@@ -55,7 +55,7 @@ class Vacancy(Base):
     )  # 384 - розмірність конкретної моделі що використовується
     embedding_model: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=False), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     def __str__(self) -> str:
@@ -130,7 +130,7 @@ class UserProfile(Base):
     )  # 384 - розмірність конкретної моделі що використовується
     embedding_model: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_matched_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=False),
+        DateTime(timezone=True),
         server_default=text("'1970-01-01 00:00:00'"),
     )
 

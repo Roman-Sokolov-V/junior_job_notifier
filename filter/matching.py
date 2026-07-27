@@ -15,7 +15,7 @@ from db.crud import (
     load_vacancies_by_id_list,
     update_profile_embeddings,
     update_vacancy_embeddings,
-    load_no_embedding_for_vacancies_id_list,
+    load_no_embedding_for_vacancies_id_list, get_db_now,
 )
 from db.models import UserProfile
 from db.session import get_db
@@ -71,6 +71,7 @@ def filter_vacancies(model: SentenceTransformer | None = None) -> None:
     if model is None:
         model = SentenceTransformer(current_model_name)
     with get_db() as db:
+        run_started_at = get_db_now(db)
         updated_profiles = update_profile_embeddings(
             db=db, model=model, current_model_name=current_model_name
         )
@@ -222,7 +223,7 @@ def filter_vacancies(model: SentenceTransformer | None = None) -> None:
                     confidence=v.get("confidence"),
                     reason=v.get("reason"),
                 )
-            profile.last_matched_at = datetime.now()
+            profile.last_matched_at = run_started_at
         logger.info("Всього за сесію додано %s збігів", num_matches)
 
 

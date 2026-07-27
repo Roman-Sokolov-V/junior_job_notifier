@@ -254,3 +254,8 @@ def get_last_run(db: Session) -> MatcherState | None:
 
 def create_state(db: Session):
     db.add(MatcherState())
+
+def get_db_now(db: Session) -> datetime:
+    """Отримує поточний час з боку сервера БД (той самий годинник,
+    що використовує func.now() для created_at вакансій)."""
+    return db.execute(select(func.now())).scalar_one()

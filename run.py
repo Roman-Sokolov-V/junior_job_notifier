@@ -65,6 +65,7 @@ from db.crud import (  # noqa: E402
     get_last_run,
     get_vacancies_urls,
     mark_urls_as_seen,
+    get_db_now,
 )
 from db.session import get_db  # noqa: E402
 from filter.matching import filter_vacancies  # noqa: E402
@@ -141,8 +142,7 @@ def main(model: SentenceTransformer):
     with get_db() as db:
         # оновлюємо last_seen_at для тих, що реально зустрілись
         mark_urls_as_seen(db, seen_existing_urls)
-
-        now = datetime.now()
+        now = get_db_now()
         stale_cutoff = now - timedelta(days=7)
         state = get_last_run(db)
         if state is None:
@@ -160,9 +160,9 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     try:
         model = create_ai_model(current_model_name)
-        #main(model)
+        main(model)
         filter_vacancies(model)
-        #start_notification()
+        start_notification()
     finally:
         del model
         gc.collect()
