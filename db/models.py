@@ -13,7 +13,8 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
-    text, CheckConstraint,
+    text,
+    CheckConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -21,7 +22,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pgvector.sqlalchemy import Vector
 
 from db.base import Base
-
 
 
 class Vacancy(Base):
@@ -48,48 +48,73 @@ class Vacancy(Base):
     )
 
     matches: Mapped[list["UserMatch"]] = relationship(
-        "UserMatch",
-        back_populates="vacancy"
+        "UserMatch", back_populates="vacancy"
     )
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True) # 384 - розмірність конкретної моделі що використовується
+    embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(384), nullable=True
+    )  # 384 - розмірність конкретної моделі що використовується
     embedding_model: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False), server_default=func.now(), nullable=False
     )
+
+    def __str__(self) -> str:
+        return f"id: {self.id}, description: {self.description_text[:10] if self.description_text else None}"
 
 
 class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    telegram_user_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, nullable=True)
+    telegram_user_id: Mapped[int | None] = mapped_column(
+        BigInteger, unique=True, nullable=True
+    )
     username: Mapped[str | None] = mapped_column(Text, nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
         server_default=func.now(),
         nullable=False,
     )
 
-    profiles: Mapped[list["UserProfile"]] = relationship("UserProfile", back_populates="user")
+    profiles: Mapped[list["UserProfile"]] = relationship(
+        "UserProfile", back_populates="user"
+    )
 
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"
-    __table_args__ = (UniqueConstraint("user_id", "name", name="ux_user_profiles_user_name"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="ux_user_profiles_user_name"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    name: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'default'"))
-    query_text: Mapped[str] = mapped_column(Text, nullable=True, server_default=None)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'default'")
+    )
+    query_text: Mapped[str] = mapped_column(
+        Text, nullable=True, server_default=None
+    )  # for full description text filtering
+    stack: Mapped[str] = mapped_column(
+        Text, nullable=True, server_default=None
+    )  # for embedding_text filtering
     include_keywords: Mapped[list[Any]] = mapped_column(
         JSONB, nullable=False, server_default=text("'[]'::jsonb")
     )
     exclude_keywords: Mapped[list[Any]] = mapped_column(
         JSONB, nullable=False, server_default=text("'[]'::jsonb")
     )
-    min_semantic_score: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0.42"))
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    min_semantic_score: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default=text("0.42")
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
         server_default=func.now(),
@@ -98,8 +123,7 @@ class UserProfile(Base):
 
     user: Mapped["User"] = relationship("User", back_populates="profiles")
     matches: Mapped[list["UserMatch"]] = relationship(
-        "UserMatch",
-        back_populates="profile"
+        "UserMatch", back_populates="profile"
     )
     embedding: Mapped[list[float] | None] = mapped_column(
         Vector(384), nullable=True
@@ -114,15 +138,25 @@ class UserProfile(Base):
 class UserMatch(Base):
     __tablename__ = "user_matches"
     __table_args__ = (
-        UniqueConstraint("profile_id", "vacancy_id", name="uq_user_matches_profile_vacancy"),
+        UniqueConstraint(
+            "profile_id", "vacancy_id", name="uq_user_matches_profile_vacancy"
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    profile_id: Mapped[int] = mapped_column(ForeignKey("user_profiles.id", ondelete="CASCADE"), nullable=False)
-    vacancy_id: Mapped[int] = mapped_column(ForeignKey("vacancies.id", ondelete="CASCADE"), nullable=False)
-    semantic_score: Mapped[float] = mapped_column(Float, nullable=True)
-    notified: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    profile_id: Mapped[int] = mapped_column(
+        ForeignKey("user_profiles.id", ondelete="CASCADE"), nullable=False
+    )
+    vacancy_id: Mapped[int] = mapped_column(
+        ForeignKey("vacancies.id", ondelete="CASCADE"), nullable=False
+    )
+    semantic_score: Mapped[float] = mapped_column(Float, nullable=True)  # for embedding
+    notified: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
         server_default=func.now(),
@@ -130,14 +164,16 @@ class UserMatch(Base):
     )
 
     vacancy: Mapped["Vacancy"] = relationship("Vacancy", back_populates="matches")
-    profile: Mapped["UserProfile"] = relationship("UserProfile", back_populates="matches")
+    profile: Mapped["UserProfile"] = relationship(
+        "UserProfile", back_populates="matches"
+    )
+    reason: Mapped[str] = mapped_column(Text, nullable=True)  # for llm
+    confidence: Mapped[float] = mapped_column(Float, nullable=True)  # for llm
 
 
 class MatcherState(Base):
     __tablename__ = "matcher_state"
-    __table_args__ = (
-        CheckConstraint('id = 1', name='only_one_row_constraint'),
-    )
+    __table_args__ = (CheckConstraint("id = 1", name="only_one_row_constraint"),)
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),

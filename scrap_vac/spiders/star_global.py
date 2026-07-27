@@ -1,8 +1,4 @@
-import json
-from pprint import pprint
-
 import scrapy
-from scrapy import Selector
 
 from scrap_vac.spiders.common import CommonSpider
 

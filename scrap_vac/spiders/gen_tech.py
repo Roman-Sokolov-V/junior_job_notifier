@@ -1,4 +1,3 @@
-import re
 import scrapy
 from scrapy.http import Response
 

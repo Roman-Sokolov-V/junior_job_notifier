@@ -1,5 +1,4 @@
 import scrapy
-from pprint import pprint
 
 from scrap_vac.spiders.common import MixinTextEditor
 
@@ -60,19 +59,15 @@ class EpamSpider(MixinTextEditor, scrapy.Spider):
     def parse_json_data(self, response):
 
         data = response.json()["data"]
-        # pprint(data)
-        # pprint(data.keys())
         jobs = response.json()["data"]["jobs"]
-        #pprint(jobs)
         skipped_counter = 0
         scrapped_counter = 0
         for job in jobs:
             title = None
             url = None
-            description = None
             requirements = None
             nice_to_have = None
-            if is_expired := job.get("is_expired"):
+            if job.get("is_expired"):
                 skipped_counter += 1
                 continue
 

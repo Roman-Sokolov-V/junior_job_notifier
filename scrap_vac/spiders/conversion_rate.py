@@ -23,7 +23,7 @@ class ConversionRateSpider(MixinTextEditor, scrapy.Spider):
         title = response.css(".vacancy__title::text").extract_first()
         listing_context = self.extract_and_clean_all_text(response, "vacancy__option")
         description = self.extract_and_clean_all_text(response, "vacancy__info")
-        looking_for = self.extract_and_clean_all_text(response, "vacancy__requirements")
+
         yield {
             "source": self.name,
             "url": response.url,
