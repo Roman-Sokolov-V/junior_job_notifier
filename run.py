@@ -74,7 +74,6 @@ from scrap_vac.spiders import (  # noqa: E402
     BreezySpider,
     ConversionRateSpider,
     EpamSpider,
-    GenTechSpider,
     NewxelSpider,
     StarGlobalSpider,
     SvitlaSpider,

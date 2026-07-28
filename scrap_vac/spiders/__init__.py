@@ -10,9 +10,7 @@ from .thingsboard import ThingsboardSpider
 from .breezy import BreezySpider
 from .tieto import TietoSpider
 from .anderson import AndersonSpider
-from .gen_tech import GenTechSpider
 from .svitla import SvitlaSpider
-
 
 
 __all__ = [
@@ -24,6 +22,5 @@ __all__ = [
     BreezySpider,
     TietoSpider,
     AndersonSpider,
-    GenTechSpider,
     SvitlaSpider,
 ]
