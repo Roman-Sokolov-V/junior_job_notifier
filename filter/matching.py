@@ -1,6 +1,5 @@
 import logging
 import os
-from datetime import datetime
 from typing import Sequence
 
 from dotenv import load_dotenv
@@ -9,16 +8,20 @@ from sqlalchemy import RowMapping
 
 from db.crud import (
     get_active_users_profiles,
-    save_match,
-    get_vac_ids_since_date, load_semantic_matches_for_vacancies_id_list,
-    load_vacancies_by_id_list, update_profile_embeddings, update_vacancy_embeddings,
-    load_no_embedding_for_vacancies_id_list, load_semantic_matches_and_no_embedded_vacancies_from_id_list,
+    get_vac_ids_since_date,
+    load_semantic_matches_for_vacancies_id_list,
+    load_vacancies_by_id_list,
+    update_profile_embeddings,
+    update_vacancy_embeddings,
+    get_db_now,
+    save_matches_bulk,
 )
 from db.models import UserProfile
 from db.session import get_db
-from common_settings import setup_logging, current_model_name
+from common_settings import setup_logging, current_model_name, LLM_MODEL_NAME
+from filter.gemini_filter import get_matches_list_for_all_profiles
+from filter.schemas import LLMCandidate, MatchData, Profile
 
-setup_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +33,6 @@ def to_str_list(value) -> list[str]:
     if isinstance(value, list):
         return [str(x) for x in value if str(x).strip()]
     return []
-
 
 
 def keyword_filter(title: str, include: list[str], exclude: list[str]) -> bool:
@@ -52,118 +54,132 @@ def keyword_filter(title: str, include: list[str], exclude: list[str]) -> bool:
             return False
     return True
 
-def filter_vacancies_by_keywords(vacancies: Sequence[RowMapping], include: list, exclude: list) -> list[RowMapping]:
+
+def filter_vacancies_by_keywords(
+    vacancies: Sequence[RowMapping], include: list, exclude: list
+) -> list[dict]:
     vacancies_list = [
-        vacancy
-        for vacancy
-        in vacancies
+        dict(vacancy)
+        for vacancy in vacancies
         if keyword_filter(vacancy.title, include, exclude)
     ]
     return vacancies_list
 
 
-
-def filter_vacancies(model: SentenceTransformer | None) -> None:
+async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
     if model is None:
         model = SentenceTransformer(current_model_name)
     with get_db() as db:
-        updated_profiles = update_profile_embeddings(db=db, model=model, current_model_name=current_model_name)
-        updated_vacancies = update_vacancy_embeddings(db=db, model=model, current_model_name=current_model_name)
+        run_started_at = get_db_now(db)
+        updated_profiles = update_profile_embeddings(
+            db=db, model=model, current_model_name=current_model_name
+        )
+        updated_vacancies = update_vacancy_embeddings(
+            db=db, model=model, current_model_name=current_model_name
+        )
 
-        logger.info("Updated profiles.embeddings: {}, vacancies.embeddings: {}".format(updated_profiles, updated_vacancies))
+        logger.info(
+            "Updated profiles.embeddings: %s, vacancies.embeddings: %s",
+            updated_profiles,
+            updated_vacancies,
+        )
         profiles: Sequence[UserProfile] = get_active_users_profiles(db)
         logger.info("Знайдено профайлів {}".format(len(profiles)))
         if not profiles:
             logger.info("No active profiles in user_profiles. Nothing to process.")
             return
-        num_matches = 0
 
+        matches = []
+        candidates_llm_filtering = []
         for profile in profiles:
-            vacancies_id: Sequence[int] = get_vac_ids_since_date(db, profile.last_matched_at)
-            logger.info("Нових вакансій для матчингу {}".format(len(vacancies_id)))
+            vacancies_id: Sequence[int] = get_vac_ids_since_date(
+                db, profile.last_matched_at
+            )
+            logger.info("Нових вакансій для матчингу %s", len(vacancies_id))
             if not vacancies_id:
                 continue
 
             if profile.embedding:
-                # vacancy.embedding is not None
-                # long version
-                semantic_filtered_vacancies: Sequence[RowMapping] = load_semantic_matches_for_vacancies_id_list(db, profile, vacancies_id)
-                num_semantic_filtered_vacancies = len(semantic_filtered_vacancies)
-                logger.info(
-                    "Знайдено %s підходящих вакансій за семантичною ознакою для профіля %s",
-                    num_semantic_filtered_vacancies, profile.id
+                vacancies: Sequence[RowMapping] = (
+                    load_semantic_matches_for_vacancies_id_list(
+                        db, profile, vacancies_id
+                    )
                 )
-                keyword_filtered_vacancies_with_embedding = filter_vacancies_by_keywords(semantic_filtered_vacancies, profile.include_keywords, profile.exclude_keywords)
-                num_filtered_vacancies_1 = len(keyword_filtered_vacancies_with_embedding)
-                num_rejected_1 = num_semantic_filtered_vacancies - num_filtered_vacancies_1
-
-                logger.info(
-                    "Відсіяно %s з %s попередньо семантично відфільтрованих за keyword_filter для профіля %s",
-                    num_rejected_1, num_filtered_vacancies_1, profile.id
-                )
-                # vacancy.embedding is None
-                no_embedding_vacancies: Sequence[RowMapping] = load_no_embedding_for_vacancies_id_list(db, vacancies_id)
-                num_no_embedding_vacancies = len(no_embedding_vacancies)
-                logger.info(
-                    "Знайдено %s вакансій без embedding для профіля %s",
-                    num_no_embedding_vacancies, profile.id
-                )
-                keyword_filtered_vacancies_no_embedding = filter_vacancies_by_keywords(
-                    semantic_filtered_vacancies,
-                    profile.include_keywords,
-                    profile.exclude_keywords
-                )
-
-                num_filtered_vacancies_2 = len(keyword_filtered_vacancies_no_embedding)
-                num_rejected_2 = num_no_embedding_vacancies - num_filtered_vacancies_2
-
-                logger.info(
-                    "Відсіяно %s з %s вакансій (без embedding) за keyword_filter для профіля %s",
-                    num_rejected_2, num_no_embedding_vacancies, profile.id
-                )
-                full_filtered_vacancies = keyword_filtered_vacancies_with_embedding + keyword_filtered_vacancies_no_embedding
-                num_filtered_vacancies = len(full_filtered_vacancies)
-                # # short version
-                # vacancies = load_semantic_matches_and_no_embedded_vacancies_from_id_list(db, profile, vacancies_id)
-                # logger.info(
-                #     "Знайдено %s вакансій для профіля %s",
-                #     len(vacancies), profile.id
-                # )
-                # full_filtered_vacancies = filter_vacancies_by_keywords(vacancies, profile.include_keywords, profile.exclude_keywords)
-                # num_filtered_vacancies = len(full_filtered_vacancies)
-
-            else:
-                vacancies: Sequence[RowMapping] = load_vacancies_by_id_list(db=db, vac_ids=vacancies_id)
-                logger.info(
-                    "Знайдено %s вакансій для профіля %s",
-                    len(vacancies), profile.id
-                )
-                full_filtered_vacancies = filter_vacancies_by_keywords(vacancies, profile.include_keywords, profile.exclude_keywords)
                 num_vacancies = len(vacancies)
+                logger.info(
+                    "Знайдено %s вакансій за семантичною дистанцією для профіля %s",
+                    num_vacancies,
+                    profile.id,
+                )
+                full_filtered_vacancies = filter_vacancies_by_keywords(
+                    vacancies, profile.include_keywords, profile.exclude_keywords
+                )
                 num_filtered_vacancies = len(full_filtered_vacancies)
-                num_rejected = num_vacancies - num_filtered_vacancies
+                logger.info(
+                    "Відсіяно %s з %s вакансій за keyword_filter для профіля %s",
+                    num_vacancies - num_filtered_vacancies,
+                    num_vacancies,
+                    profile.id,
+                )
+                logger.info(
+                    "Всього %s вакансій відправляються на фільтрацію LLM для профіля %s",
+                    num_filtered_vacancies,
+                    profile.id,
+                )
+                profile_data = Profile(
+                    id=profile.id,
+                    user_id=profile.user_id,
+                    query_text=profile.query_text,
+                )
+                candidates_llm_filtering.append(
+                    LLMCandidate(
+                        profile=profile_data, vacancies=full_filtered_vacancies
+                    )
+                )
+            else:
+                vacancies: Sequence[RowMapping] = load_vacancies_by_id_list(
+                    db=db, vac_ids=vacancies_id
+                )
+                num_vacancies = len(vacancies)
+                logger.info(
+                    "Знайдено %s вакансій для профіля %s", num_vacancies, profile.id
+                )
+                full_filtered_vacancies = filter_vacancies_by_keywords(
+                    vacancies, profile.include_keywords, profile.exclude_keywords
+                )
+                num_filtered_vacancies = len(full_filtered_vacancies)
                 logger.info(
                     "Відсіяно %s з %s за keyword_filter для профіля %s",
-                    num_rejected, num_vacancies, profile.id
+                    num_vacancies - num_filtered_vacancies,
+                    num_vacancies,
+                    profile.id,
                 )
-            num_matches += num_filtered_vacancies
-            for v in full_filtered_vacancies:
-                save_match(
-                    db=db,
-                    profile=profile,
-                    vacancy_id=v["id"],
-                    semantic=v.get("semantic_score")
-                )
-            profile.last_matched_at = datetime.now()
-        logger.info("Всього за сесію додано %s збігів", num_matches)
-
+                keyword_matches = [
+                    MatchData(
+                        user_id=profile.user_id,
+                        profile_id=profile.id,
+                        vacancy_id=v["id"],
+                        semantic_score=None,
+                        confidence=None,
+                        reason="keyword_filter",
+                    )
+                    for v in full_filtered_vacancies
+                ]
+                matches.extend(keyword_matches)
+                profile.last_matched_at = run_started_at
+            llm_matches: list[MatchData] = await get_matches_list_for_all_profiles(
+                candidates_llm_filtering, LLM_MODEL_NAME
+            )
+            logger.info("-----------LLM matches: %s--------------", len(llm_matches))
+            matches.extend(llm_matches)
+            save_matches_bulk(db, matches)
+            logger.info("Всього за сесію додано %s збігів", len(matches))
 
 
 if __name__ == "__main__":
     load_dotenv()
     db_url = os.getenv("DATABASE_URL")
-
-
+    setup_logging()
     if not db_url:
         raise ValueError("DATABASE_URL is not set")
     filter_vacancies()

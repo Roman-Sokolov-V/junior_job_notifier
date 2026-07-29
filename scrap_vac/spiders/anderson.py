@@ -1,13 +1,12 @@
 import scrapy
 
 
-
 class AndersonSpider(scrapy.Spider):
     name = "anderson"
     allowed_domains = ["people.andersenlab.com", "asite-api.andersenlab.com"]
     start_urls = ["https://people.andersenlab.com/ua/vacancies"]
 
-    def start_requests(self):
+    async def start(self):
         yield scrapy.Request(
             url="https://asite-api.andersenlab.com/api/integration/recruitment/vacancies",
             headers={
@@ -20,13 +19,12 @@ class AndersonSpider(scrapy.Spider):
                 "X-Country-Code": "UA",
                 "Origin": "https://people.andersenlab.com",
             },
-            callback=self.parse
+            callback=self.parse,
         )
 
     def parse(self, response):
         jobs = response.json()
         for job in jobs:
-
             vacancy_id = job.get("vacancy_id")
             if not vacancy_id:
                 continue
@@ -43,7 +41,6 @@ class AndersonSpider(scrapy.Spider):
                 if requirements_dict := requirements_key[0]:
                     if requirements_list := requirements_dict.get("content"):
                         requirements = ", ".join(requirements_list)
-            embedding_text = (requirements + " ") if requirements + nice_to_have else ""
 
             responsibilities = ""
             if responsibilities_key := job.get("responsibilities"):
@@ -53,7 +50,11 @@ class AndersonSpider(scrapy.Spider):
             description_text = (
                 (("requirements: " + requirements + "\n") if requirements else "")
                 + (("nice_to_have: " + nice_to_have + "\n") if nice_to_have else "")
-                + (("responsibilities: " + responsibilities) if responsibilities else "")
+                + (
+                    ("responsibilities: " + responsibilities)
+                    if responsibilities
+                    else ""
+                )
             )
 
             yield {
@@ -64,5 +65,5 @@ class AndersonSpider(scrapy.Spider):
                 "seniority": seniority,
                 "requirements": requirements if requirements else None,
                 "nice_to_have": nice_to_have if nice_to_have else None,
-                "embedding_text": embedding_text if embedding_text else None,
+                # "embedding_text": embedding_text if embedding_text else None,
             }

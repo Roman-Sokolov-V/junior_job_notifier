@@ -17,7 +17,10 @@ def create_engine_from_url(database_url: str) -> Engine:
 
 
 def create_session_factory(engine: Engine) -> sessionmaker[Session]:
-    return sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+    return sessionmaker(
+        bind=engine, autoflush=False, autocommit=False, expire_on_commit=False
+    )
+
 
 database_url = settings.DATABASE_URL
 engine = create_engine(database_url)
@@ -42,4 +45,3 @@ def get_db() -> Generator[Session, None, None]:
         raise
     finally:
         db.close()
-
