@@ -176,7 +176,7 @@ class MatcherState(Base):
     __table_args__ = (CheckConstraint("id = 1", name="only_one_row_constraint"),)
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=False),
+        DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
     )

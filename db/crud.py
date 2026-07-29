@@ -1,11 +1,12 @@
 from datetime import date, datetime
 from typing import Sequence
 from sqlalchemy.orm import Session
-from sqlalchemy import select, Row, update, RowMapping, or_, delete, literal
+from sqlalchemy import select, Row, update, RowMapping, or_, delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.sql import func
 
 from db.models import Vacancy, UserProfile, User, UserMatch, MatcherState
+from filter.schemas import MatchData
 
 
 def get_vacancies_since_date(db: Session, since_ts: date) -> Sequence[Vacancy]:
@@ -73,7 +74,7 @@ def save_match(
     db: Session,
     profile: UserProfile,
     vacancy_id: int,
-    confidence: float| None,
+    confidence: float | None,
     reason: str | None,
     semantic: float | None,
 ) -> None:
@@ -92,6 +93,30 @@ def save_match(
         },
     )
     db.execute(upsert)
+
+
+def save_matches_bulk(db: Session, matches_data: list[MatchData]) -> None:
+    """
+    Приймає список MatchData. Створює новий UserMatch
+    Якщо UserMatch виникає constraint="uq_user_matches_profile_vacancy"
+    (унікальні profile_id, vacancy_id) то у існуючого UserMatch
+    оновлюються поля semantic_score, confidence, reason.
+    """
+    if not matches_data:
+        return
+
+    upsert_stmt = insert(UserMatch)
+
+    # 2. Налаштовуємо логіку конфлікту
+    upsert_stmt = upsert_stmt.on_conflict_do_update(
+        constraint="uq_user_matches_profile_vacancy",
+        set_={
+            "semantic_score": upsert_stmt.excluded.semantic_score,
+            "confidence": upsert_stmt.excluded.confidence,
+            "reason": upsert_stmt.excluded.reason,
+        },
+    )
+    db.execute(upsert_stmt, [match.model_dump() for match in matches_data])
 
 
 def mark_notified(db: Session, match_id: int) -> None:
@@ -177,50 +202,6 @@ def load_semantic_matches_for_vacancies_id_list(
     return db.execute(stmt).mappings().all()
 
 
-def load_semantic_matches_and_no_embedded_vacancies_from_id_list(
-    db: Session, profile: UserProfile, vac_ids: Sequence[int], limit: int = 200
-) -> Sequence[RowMapping]:
-    """Returns vacancies and similarities whose cosine similarity to the profile's embedding
-    meets profile.min_semantic_score, ordered by best match first."""
-    if not vac_ids:
-        return []
-
-    max_distance = 1 - profile.min_semantic_score
-    distance_expr = Vacancy.embedding.cosine_distance(profile.embedding)
-    similarity_expr = (1 - distance_expr).label("semantic_score")
-
-    stmt_with_embedding = (
-        select(Vacancy.id, Vacancy.title, Vacancy.url, similarity_expr)
-        .where(
-            Vacancy.id.in_(vac_ids),
-            Vacancy.embedding.is_not(None),
-            distance_expr <= max_distance,
-        )
-        # .order_by(distance_expr)
-        .limit(limit)
-    )
-    stmt_without_embedding = select(
-        Vacancy.id,
-        Vacancy.title,
-        Vacancy.url,
-        literal(None).label("similarity_expr"),
-    ).where(
-        Vacancy.id.in_(vac_ids),
-        Vacancy.embedding.is_(None),
-    )
-    stmt = stmt_with_embedding.union(stmt_without_embedding).order_by(similarity_expr)
-    return db.execute(stmt).mappings().all()
-
-
-def load_no_embedding_for_vacancies_id_list(
-    db: Session, vac_ids: Sequence[int]
-) -> Sequence[RowMapping]:
-    stmt = select(
-        Vacancy.id, Vacancy.title, Vacancy.url, literal(None).label("similarity_expr")
-    ).where(Vacancy.id.in_(vac_ids), Vacancy.embedding.is_(None))
-    return db.execute(stmt).mappings().all()
-
-
 def load_vacancies_by_id_list(
     db: Session, vac_ids: Sequence[int]
 ) -> Sequence[RowMapping]:
@@ -254,6 +235,7 @@ def get_last_run(db: Session) -> MatcherState | None:
 
 def create_state(db: Session):
     db.add(MatcherState())
+
 
 def get_db_now(db: Session) -> datetime:
     """Отримує поточний час з боку сервера БД (той самий годинник,

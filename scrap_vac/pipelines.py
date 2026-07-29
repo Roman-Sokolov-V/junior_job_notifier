@@ -14,7 +14,7 @@ from db.session import get_db
 
 
 class PgvectorPipeline:
-    """Збереження результатів в бд з ембендінгом"""
+    """Збереження результатів в бд з ембедінгом"""
 
     def __init__(self, ai_model_name: str | None, model: SentenceTransformer) -> None:
         self.ai_model_name = ai_model_name
@@ -35,8 +35,10 @@ class PgvectorPipeline:
 
     def process_item(self, item):
         text = item.get("description_text", None)
-        embedding = self.model.encode(text).tolist() if text else None
-        embedding_model = self.ai_model_name if embedding is not None else None
+        if not text:
+            raise DropItem("No description provided.")
+        embedding = self.model.encode(text).tolist()
+        embedding_model = self.ai_model_name
         vacancy_data = {
             "url": item["url"],
             "title": item["title"],
@@ -51,9 +53,4 @@ class PgvectorPipeline:
             "seniority": item.get("seniority"),
         }
         with get_db() as db:
-            is_new = create_vacancy(db, vacancy_data)
-        if is_new:
-            item["embedding"] = embedding
-            item["embedding_model"] = self.ai_model_name
-            return item
-        raise DropItem(f"URL+Description already exists in db: {item}")
+            create_vacancy(db, vacancy_data)

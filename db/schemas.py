@@ -44,7 +44,6 @@ class ProfileRow:
     last_matched_at: datetime
 
 
-
 @dataclass
 class MatchCandidate:
     vacancy_id: int

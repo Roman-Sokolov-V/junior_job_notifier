@@ -15,6 +15,7 @@ import gc
 import logging
 import os
 from datetime import datetime, timedelta
+import asyncio
 
 # --- 2. Environment setup (must run before heavier imports) --------------
 # python-dotenv must load .env before any local module that reads env vars
@@ -97,7 +98,6 @@ LIGHT_SPIDERS = [
     ConversionRateSpider,
     EpamSpider,
     AndersonSpider,
-    GenTechSpider,
     SvitlaSpider,
 ]
 
@@ -141,7 +141,7 @@ def main(model: SentenceTransformer):
     with get_db() as db:
         # оновлюємо last_seen_at для тих, що реально зустрілись
         mark_urls_as_seen(db, seen_existing_urls)
-        now = get_db_now()
+        now = get_db_now(db)
         stale_cutoff = now - timedelta(days=7)
         state = get_last_run(db)
         if state is None:
@@ -154,14 +154,20 @@ def main(model: SentenceTransformer):
             state.updated_at = now
 
 
+async def run_pipeline(model):
+    await filter_vacancies(model)
+    start_notification()
+
+
 if __name__ == "__main__":
     setup_logging()
     logger = logging.getLogger(__name__)
+    semantic_model = None
     try:
-        model = create_ai_model(current_model_name)
-        main(model)
-        filter_vacancies(model)
-        start_notification()
+        semantic_model = create_ai_model(current_model_name)
+        main(semantic_model)
+        asyncio.run(run_pipeline(semantic_model))
     finally:
-        del model
+        if semantic_model is not None:
+            del semantic_model
         gc.collect()

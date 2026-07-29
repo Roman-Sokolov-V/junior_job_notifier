@@ -42,3 +42,4 @@ def setup_logging():
     logging.config.dictConfig(LOGGING_CONFIG)
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+LLM_MODEL_NAME = "gemini-3.6-flash"
