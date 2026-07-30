@@ -1,3 +1,4 @@
+import logging
 from datetime import date, datetime
 from typing import Sequence
 from sqlalchemy.orm import Session
@@ -8,6 +9,7 @@ from sqlalchemy.sql import func
 from db.models import Vacancy, UserProfile, User, UserMatch, MatcherState
 from filter.schemas import MatchData
 
+logger = logging.getLogger(__name__)
 
 def get_vacancies_since_date(db: Session, since_ts: date) -> Sequence[Vacancy]:
     stmt = (
@@ -50,10 +52,13 @@ def get_active_users_profiles(db: Session) -> Sequence[UserProfile]:
     return result.scalars().all()
 
 
-def get_not_notified(db: Session) -> list[Row]:
+def get_not_notified(db: Session) -> Sequence[Row]:
     stmt = (
         select(
             UserMatch.id.label("match_id"),
+            UserMatch.reason,
+            UserMatch.confidence,
+            UserMatch.semantic_score,
             User.telegram_user_id,
             Vacancy.id,
             Vacancy.title,
@@ -119,10 +124,15 @@ def save_matches_bulk(db: Session, matches_data: list[MatchData]) -> None:
     db.execute(upsert_stmt, [match.model_dump() for match in matches_data])
 
 
-def mark_notified(db: Session, match_id: int) -> None:
-    db.execute(update(UserMatch).where(UserMatch.id == match_id).values(notified=True))
-    db.commit()
+# def mark_notified(db: Session, match_id: int) -> None:
+#     db.execute(update(UserMatch).where(UserMatch.id == match_id).values(notified=True))
+#     db.commit()
 
+def bulk_mark_notified(db: Session, matches_ids: list[int]) -> None:
+    logger.info("start bulk mark_notified for %s", str(matches_ids))
+    stmt = update(UserMatch).where(UserMatch.id.in_(matches_ids)).values(notified=True)
+    db.execute(stmt)
+    db.commit()
 
 def get_vacancies_urls(db: Session) -> Sequence[str]:
     stmt = select(Vacancy.url)

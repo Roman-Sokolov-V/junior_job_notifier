@@ -59,7 +59,7 @@ from sentence_transformers import SentenceTransformer  # noqa: E402
 from twisted.internet import defer, reactor  # noqa: E402
 
 # Local
-from common_settings import current_model_name, setup_logging  # noqa: E402
+from project_config import current_model_name, setup_logging  # noqa: E402
 from db.crud import (  # noqa: E402
     create_state,
     delete_vacancies_not_seen_since,
@@ -156,7 +156,7 @@ def main(model: SentenceTransformer):
 
 async def run_pipeline(model):
     await filter_vacancies(model)
-    start_notification()
+    await start_notification()
 
 
 if __name__ == "__main__":

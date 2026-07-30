@@ -4,7 +4,7 @@ from google.genai import Client
 from google.genai import types
 
 
-from common_settings import GEMINI_API_KEY
+from project_config import GEMINI_API_KEY
 from filter.schemas import BatchFilterResponse, LLMCandidate, MatchData
 
 logger = logging.getLogger(__name__)

@@ -18,7 +18,7 @@ from db.crud import (
 )
 from db.models import UserProfile
 from db.session import get_db
-from common_settings import setup_logging, current_model_name, LLM_MODEL_NAME
+from project_config import setup_logging, current_model_name, LLM_MODEL_NAME
 from filter.gemini_filter import get_matches_list_for_all_profiles
 from filter.schemas import LLMCandidate, MatchData, Profile
 
@@ -167,13 +167,13 @@ async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
                 ]
                 matches.extend(keyword_matches)
                 profile.last_matched_at = run_started_at
-            llm_matches: list[MatchData] = await get_matches_list_for_all_profiles(
-                candidates_llm_filtering, LLM_MODEL_NAME
-            )
-            logger.info("-----------LLM matches: %s--------------", len(llm_matches))
-            matches.extend(llm_matches)
-            save_matches_bulk(db, matches)
-            logger.info("Всього за сесію додано %s збігів", len(matches))
+        llm_matches: list[MatchData] = await get_matches_list_for_all_profiles(
+            candidates_llm_filtering, LLM_MODEL_NAME
+        )
+        logger.info("-----------LLM matches: %s--------------", len(llm_matches))
+        matches.extend(llm_matches)
+        save_matches_bulk(db, matches)
+        logger.info("Всього за сесію додано %s збігів", len(matches))
 
 
 if __name__ == "__main__":
