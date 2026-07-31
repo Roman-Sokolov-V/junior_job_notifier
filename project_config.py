@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-ASYNC_DATABASE_URL = os.getenv("ASYNC_DATABASE_URL")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 AI_MODEL_NAME = os.getenv("AI_MODEL_NAME")
 current_model_name = os.getenv("AI_MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
