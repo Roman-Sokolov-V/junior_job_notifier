@@ -6,7 +6,7 @@ class StarGlobalSpider(scrapy.Spider):
     allowed_domains = ["star.global"]
     # start_urls = ["https://star.global/careers/?pageSlug=careers"]
 
-    def start_requests(self):
+    async def start(self):
         yield scrapy.Request(
             url="https://star.global/api/job-teasers/?post_type=job&lang=en",
             headers={
