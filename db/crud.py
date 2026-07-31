@@ -248,6 +248,5 @@ def create_state(db: Session):
 
 
 def get_db_now(db: Session) -> datetime:
-    """Отримує поточний час з боку сервера БД (той самий годинник,
-    що використовує func.now() для created_at вакансій)."""
+    """Отримує поточний час з боку сервера БД """
     return db.execute(select(func.now())).scalar_one()

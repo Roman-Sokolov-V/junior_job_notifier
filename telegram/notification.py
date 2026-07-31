@@ -67,7 +67,7 @@ async def start_notification() -> None:
         logging.debug("знайдено %s", len(notification_data))
     num_need_to_notify = len(notification_data)
     if num_need_to_notify == 0:
-        logging.info("Нема не матчів, зі статусом - не повідомлені")
+        logging.info("Нема матчів, зі статусом - не повідомлені")
         return None
     async with AsyncClient() as client:
         coroutines = [send_one_notification(client, data) for data in notification_data]
