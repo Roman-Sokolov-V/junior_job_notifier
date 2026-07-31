@@ -71,6 +71,7 @@ async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
         model = SentenceTransformer(current_model_name)
     with get_db() as db:
         run_started_at = get_db_now(db)
+        logger.info("Поточний час бд %s", run_started_at)
         updated_profiles = update_profile_embeddings(
             db=db, model=model, current_model_name=current_model_name
         )
@@ -166,7 +167,7 @@ async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
                     for v in full_filtered_vacancies
                 ]
                 matches.extend(keyword_matches)
-                profile.last_matched_at = run_started_at
+            profile.last_matched_at = run_started_at
         llm_matches: list[MatchData] = await get_matches_list_for_all_profiles(
             candidates_llm_filtering, LLM_MODEL_NAME
         )
