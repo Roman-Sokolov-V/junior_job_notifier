@@ -131,10 +131,12 @@ async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
                     id=profile.id,
                     user_id=profile.user_id,
                     query_text=profile.query_text,
+                    cv_file=profile.cv_file,
+                    mime_type=profile.mime_type,
                 )
                 candidates_llm_filtering.append(
                     LLMCandidate(
-                        profile=profile_data, vacancies=full_filtered_vacancies
+                        profile_data=profile_data, vacancies=full_filtered_vacancies
                     )
                 )
             else:
