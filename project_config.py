@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SECRET_KEY = os.getenv("SUPABASE_SECRET_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 AI_MODEL_NAME = os.getenv("AI_MODEL_NAME")
 current_model_name = os.getenv("AI_MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
@@ -46,3 +48,5 @@ def setup_logging():
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 LLM_MODEL_NAME = "gemini-3.6-flash"
+
+ALLOWED_MIME_TYPES = ["application/pdf", "text/plain", "text/markdown"]

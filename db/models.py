@@ -133,6 +133,8 @@ class UserProfile(Base):
         DateTime(timezone=True),
         server_default=text("'1970-01-01 00:00:00'"),
     )
+    cv_file: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mime_type: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class UserMatch(Base):

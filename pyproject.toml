@@ -19,4 +19,5 @@ dependencies = [
     "html2text>=2025.4.15",
     "google-genai>=2.16.0",
     "pydentic>=0.0.1.dev3",
+    "supabase>=2.31.0",
 ]

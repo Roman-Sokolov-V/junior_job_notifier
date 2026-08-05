@@ -24,10 +24,12 @@ class Profile(BaseModel):
     id: int
     user_id: int
     query_text: str
+    cv_file: str | None
+    mime_type: str | None
 
 
 class LLMCandidate(BaseModel):
-    profile: Profile
+    profile_data: Profile
     vacancies: list[dict]
 
 

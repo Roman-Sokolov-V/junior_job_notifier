@@ -156,7 +156,7 @@ def main(model: SentenceTransformer):
 
 async def run_pipeline(model):
     await filter_vacancies(model)
-    await start_notification()
+    #await start_notification()
 
 
 if __name__ == "__main__":
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     semantic_model = None
     try:
         semantic_model = create_ai_model(current_model_name)
-        main(semantic_model)
+        #main(semantic_model)
         asyncio.run(run_pipeline(semantic_model))
     finally:
         if semantic_model is not None:
