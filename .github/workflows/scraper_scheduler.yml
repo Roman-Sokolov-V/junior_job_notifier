@@ -48,3 +48,4 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           AI_MODEL_NAME: ${{ secrets.AI_MODEL_NAME }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
