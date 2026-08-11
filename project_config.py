@@ -13,7 +13,7 @@ AI_MODEL_NAME = os.getenv("AI_MODEL_NAME")
 current_model_name = os.getenv("AI_MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 
 
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "WARNING")
 
 LOGGING_CONFIG = {
     "version": 1,
