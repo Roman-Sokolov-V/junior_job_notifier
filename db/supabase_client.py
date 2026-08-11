@@ -8,4 +8,4 @@ def get_supabase_client() -> Client:
 
 
 async def get_async_supabase_client() -> AsyncClient:
-    return await create_async_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
+    return await create_async_client(supabase_url=SUPABASE_URL, supabase_key=SUPABASE_SECRET_KEY)
