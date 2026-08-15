@@ -2,8 +2,6 @@ name: Run Filter Only
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 9 * * *'
 
 jobs:
   filter_only:
@@ -21,27 +19,7 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Get Playwright version
-        id: playwright-version
-        run: echo "version=$(uv run playwright --version)" >> $GITHUB_OUTPUT
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
-
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: uv run playwright install --with-deps chromium
-
-      - name: Apply database migrations
-        run: uv run alembic upgrade head
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
-      - name: Run spiders, matching, notification
+      - name: Run matching
         run: uv run run.py
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -50,4 +28,3 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-          RUN_MODE: "filter"
