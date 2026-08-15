@@ -145,8 +145,7 @@ def get_vacancies_urls(db: Session) -> Sequence[str]:
 def update_profile_embeddings(
         db: Session, current_model_name: str, model: SentenceTransformer | None=None
 ) -> int:
-    if model is None:
-        model = SentenceTransformer(current_model_name)
+
     stmt = select(UserProfile).where(
         UserProfile.is_active.is_(True),
         UserProfile.query_text.is_not(None),
@@ -158,19 +157,21 @@ def update_profile_embeddings(
     profiles = db.scalars(stmt).all()
 
     updated = 0
-    for profile in profiles:
-        embedding = model.encode(profile.query_text).tolist()
-        profile.embedding = embedding
-        profile.embedding_model = current_model_name
-        updated += 1
+    if profiles:
+        if model is None:
+            model = SentenceTransformer(current_model_name)
+        for profile in profiles:
+            embedding = model.encode(profile.query_text).tolist()
+            profile.embedding = embedding
+            profile.embedding_model = current_model_name
+            updated += 1
     return updated
 
 
 def update_vacancy_embeddings(
         db: Session, current_model_name: str, model: SentenceTransformer | None=None
 ) -> int:
-    if model is None:
-        model = SentenceTransformer(current_model_name)
+
     stmt = select(Vacancy).where(
         Vacancy.description_text.is_not(None),
         or_(
@@ -181,11 +182,14 @@ def update_vacancy_embeddings(
     vacancies = db.scalars(stmt).all()
 
     updated = 0
-    for vac in vacancies:
-        embedding = model.encode(vac.description_text).tolist()
-        vac.embedding = embedding
-        vac.embedding_model = current_model_name
-        updated += 1
+    if vacancies:
+        if model is None:
+            model = SentenceTransformer(current_model_name)
+        for vac in vacancies:
+            embedding = model.encode(vac.description_text).tolist()
+            vac.embedding = embedding
+            vac.embedding_model = current_model_name
+            updated += 1
     return updated
 
 
