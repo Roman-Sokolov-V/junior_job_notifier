@@ -173,9 +173,11 @@ if __name__ == "__main__":
                 semantic_model = create_ai_model(current_model_name)
                 main(semantic_model)
             case "filter":
+                logger.info("Run with RUN_MODE=filter")
                 semantic_model = create_ai_model(current_model_name)
                 asyncio.run(filter_vacancies(semantic_model))
             case "notification":
+                logger.info("Run with RUN_MODE=notification")
                 asyncio.run(start_notification())
             case _:
                 logger.error("Unknown RUN_MODE: %s", RUN_MODE)

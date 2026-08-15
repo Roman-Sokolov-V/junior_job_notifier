@@ -67,8 +67,7 @@ def filter_vacancies_by_keywords(
 
 
 async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
-    if model is None:
-        model = SentenceTransformer(current_model_name)
+    logger.info("Запуск фільтрації вакансій")
     with get_db() as db:
         run_started_at = get_db_now(db)
         logger.info("Поточний час бд %s", run_started_at)

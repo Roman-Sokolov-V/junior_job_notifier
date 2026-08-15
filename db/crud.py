@@ -1,6 +1,8 @@
 import logging
 from datetime import date, datetime
 from typing import Sequence
+
+from sentence_transformers import SentenceTransformer
 from sqlalchemy.orm import Session
 from sqlalchemy import select, Row, update, RowMapping, or_, delete
 from sqlalchemy.dialects.postgresql import insert
@@ -140,7 +142,11 @@ def get_vacancies_urls(db: Session) -> Sequence[str]:
     return result.scalars().all()
 
 
-def update_profile_embeddings(db: Session, model, current_model_name: str) -> int:
+def update_profile_embeddings(
+        db: Session, current_model_name: str, model: SentenceTransformer | None=None
+) -> int:
+    if model is None:
+        model = SentenceTransformer(current_model_name)
     stmt = select(UserProfile).where(
         UserProfile.is_active.is_(True),
         UserProfile.query_text.is_not(None),
@@ -160,9 +166,12 @@ def update_profile_embeddings(db: Session, model, current_model_name: str) -> in
     return updated
 
 
-def update_vacancy_embeddings(db: Session, model, current_model_name: str) -> int:
+def update_vacancy_embeddings(
+        db: Session, current_model_name: str, model: SentenceTransformer | None=None
+) -> int:
+    if model is None:
+        model = SentenceTransformer(current_model_name)
     stmt = select(Vacancy).where(
-        # Vacancy.embedding_text.is_not(None),
         Vacancy.description_text.is_not(None),
         or_(
             Vacancy.embedding_model.is_(None),
@@ -173,7 +182,6 @@ def update_vacancy_embeddings(db: Session, model, current_model_name: str) -> in
 
     updated = 0
     for vac in vacancies:
-        # embedding = model.encode(vac.embedding_text).tolist()
         embedding = model.encode(vac.description_text).tolist()
         vac.embedding = embedding
         vac.embedding_model = current_model_name
