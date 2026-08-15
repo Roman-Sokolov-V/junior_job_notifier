@@ -31,3 +31,4 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           RUN_MODE: "filter"
+          LOG_LEVEL: "DEBUG"
