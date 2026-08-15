@@ -163,6 +163,7 @@ if __name__ == "__main__":
     setup_logging()
     logger = logging.getLogger(__name__)
     semantic_model = None
+
     try:
         match RUN_MODE:
             case "all":
@@ -174,7 +175,6 @@ if __name__ == "__main__":
                 main(semantic_model)
             case "filter":
                 logger.info("Run with RUN_MODE=filter")
-                semantic_model = create_ai_model(current_model_name)
                 asyncio.run(filter_vacancies(semantic_model))
             case "notification":
                 logger.info("Run with RUN_MODE=notification")
