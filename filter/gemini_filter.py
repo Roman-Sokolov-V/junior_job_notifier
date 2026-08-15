@@ -145,21 +145,47 @@ async def get_matches_for_profile(
     return match_list
 
 
+# async def get_matches_list_for_all_profiles(
+#     list_data: list[LLMCandidate],
+#     model: str,
+# ) -> list[MatchData]:
+#     a_supabase = await get_async_supabase_client()
+#     async with Client(api_key=GEMINI_API_KEY).aio as gemini_client:
+#         coroutines = [
+#             get_matches_for_profile(
+#                 gemini_client=gemini_client,
+#                 a_supabase=a_supabase,
+#                 data=data,
+#                 model=model,
+#             )
+#             for data in list_data
+#         ]
+#         gathered = await asyncio.gather(*coroutines, return_exceptions=False)
+#
+#     return [match for sublist in gathered for match in sublist]
+
+SEMAPHORE = asyncio.Semaphore(5) # Обмежуємо кількість одночасних запитів до Gemini
+
+
 async def get_matches_list_for_all_profiles(
-    list_data: list[LLMCandidate],
-    model: str,
+        list_data: list[LLMCandidate],
+        model: str,
 ) -> list[MatchData]:
     a_supabase = await get_async_supabase_client()
+
     async with Client(api_key=GEMINI_API_KEY).aio as gemini_client:
-        coroutines = [
-            get_matches_for_profile(
-                gemini_client=gemini_client,
-                a_supabase=a_supabase,
-                data=data,
-                model=model,
-            )
-            for data in list_data
-        ]
+        # Внутрішня функція-обгортка, яка застосовує семафор до кожного запиту
+        async def fetch_with_semaphore(data: LLMCandidate):
+            async with SEMAPHORE:
+                await asyncio.sleep(0.5)  # Невелика пауза між запитами
+                return await get_matches_for_profile(
+                    gemini_client=gemini_client,
+                    a_supabase=a_supabase,
+                    data=data,
+                    model=model,
+                )
+
+        coroutines = [fetch_with_semaphore(data) for data in list_data]
         gathered = await asyncio.gather(*coroutines, return_exceptions=False)
 
     return [match for sublist in gathered for match in sublist]
