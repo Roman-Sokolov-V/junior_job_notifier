@@ -3,7 +3,9 @@ import logging
 
 from google.genai import Client
 from google.genai import types
+from google.genai.errors import ClientError
 from supabase import AsyncClient
+from tenacity import retry, wait_random_exponential, stop_after_attempt
 
 from db.supabase_client import get_async_supabase_client
 from project_config import GEMINI_API_KEY
@@ -76,6 +78,12 @@ async def get_prompt_contents(
     ]
 
 
+@retry(
+    wait=wait_random_exponential(min=2, max=30),
+    stop=stop_after_attempt(5),
+    retry=lambda e: isinstance(e, ClientError) and e.code == 429,
+    reraise=True,
+)
 async def get_response(gemini_client: Client, model: str, contents):
     return await gemini_client.models.generate_content(
         model=model,
@@ -164,7 +172,7 @@ async def get_matches_for_profile(
 #
 #     return [match for sublist in gathered for match in sublist]
 
-SEMAPHORE = asyncio.Semaphore(5) # Обмежуємо кількість одночасних запитів до Gemini
+SEMAPHORE = asyncio.Semaphore(1) # Обмежуємо кількість одночасних запитів до Gemini
 
 
 async def get_matches_list_for_all_profiles(
