@@ -59,7 +59,7 @@ from sentence_transformers import SentenceTransformer  # noqa: E402
 from twisted.internet import defer, reactor  # noqa: E402
 
 # Local
-from project_config import current_model_name, setup_logging  # noqa: E402
+from project_config import current_model_name, setup_logging, RUN_MODE  # noqa: E402
 from db.crud import (  # noqa: E402
     create_state,
     delete_vacancies_not_seen_since,
@@ -164,9 +164,21 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     semantic_model = None
     try:
-        semantic_model = create_ai_model(current_model_name)
-        main(semantic_model)
-        asyncio.run(run_pipeline(semantic_model))
+        match RUN_MODE:
+            case "all":
+                semantic_model = create_ai_model(current_model_name)
+                main(semantic_model)
+                asyncio.run(run_pipeline(semantic_model))
+            case "scrap":
+                semantic_model = create_ai_model(current_model_name)
+                main(semantic_model)
+            case "filter":
+                semantic_model = create_ai_model(current_model_name)
+                asyncio.run(filter_vacancies(semantic_model))
+            case "notification":
+                asyncio.run(start_notification())
+            case _:
+                logger.error("Unknown RUN_MODE: %s", RUN_MODE)
     finally:
         if semantic_model is not None:
             del semantic_model

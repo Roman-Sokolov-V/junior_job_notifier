@@ -1,4 +1,4 @@
-name: Run Scrapy Spiders Daily
+name: Run Filter Only
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
     - cron: '0 9 * * *'
 
 jobs:
-  scrape_and_notify:
+  filter_only:
     runs-on: ubuntu-latest
 
     steps:
@@ -50,3 +50,4 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          RUN_MODE: "filter"

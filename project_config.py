@@ -50,3 +50,6 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 LLM_MODEL_NAME = "gemini-3.6-flash"
 
 ALLOWED_MIME_TYPES = ["application/pdf", "text/plain", "text/markdown"]
+
+# run modes
+RUN_MODE = os.getenv("RUN_MODE", "all") # "all", "scrap", "filter", "notification"
