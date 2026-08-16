@@ -126,10 +126,6 @@ def save_matches_bulk(db: Session, matches_data: list[MatchData]) -> None:
     db.execute(upsert_stmt, [match.model_dump() for match in matches_data])
 
 
-# def mark_notified(db: Session, match_id: int) -> None:
-#     db.execute(update(UserMatch).where(UserMatch.id == match_id).values(notified=True))
-#     db.commit()
-
 def bulk_mark_notified(db: Session, matches_ids: list[int]) -> None:
     logger.info("start bulk mark_notified for %s", str(matches_ids))
     stmt = update(UserMatch).where(UserMatch.id.in_(matches_ids)).values(notified=True)
@@ -250,9 +246,6 @@ def delete_vacancies_not_seen_since(db: Session, stale_cutoff: datetime):
     stmt = delete(Vacancy).where(Vacancy.last_seen_at < stale_cutoff)
     db.execute(stmt)
 
-#
-# def get_last_run(db: Session) -> MatcherState | None:
-#     return db.execute(select(MatcherState)).scalar_one_or_none()
 
 
 def get_or_create_state(db: Session) -> MatcherState:
