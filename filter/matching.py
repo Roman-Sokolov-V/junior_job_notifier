@@ -4,6 +4,7 @@ from typing import Sequence
 
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
+import traceback
 from sqlalchemy import RowMapping
 
 from db.crud import (
@@ -15,6 +16,7 @@ from db.crud import (
     update_vacancy_embeddings,
     get_db_now,
     save_matches_bulk,
+    update_state_with_db_now,
 )
 from db.models import UserProfile
 from db.session import get_db
@@ -68,6 +70,7 @@ def filter_vacancies_by_keywords(
 
 async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
     logger.info("Запуск фільтрації вакансій")
+    exeptions_list = []
     with get_db() as db:
         run_started_at = get_db_now(db)
         logger.info("Поточний час бд %s", run_started_at)
@@ -92,90 +95,131 @@ async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
         matches = []
         candidates_llm_filtering = []
         for profile in profiles:
-            vacancies_id: Sequence[int] = get_vac_ids_since_date(
-                db, profile.last_matched_at
-            )
-            logger.info("Нових вакансій для матчингу %s", len(vacancies_id))
-            if not vacancies_id:
+            try:
+                vacancies_id: Sequence[int] = get_vac_ids_since_date(
+                    db, profile.last_matched_at
+                )
+                logger.info("Нових вакансій для матчингу %s", len(vacancies_id))
+                if not vacancies_id:
+                    continue
+
+                if profile.embedding:
+                    vacancies: Sequence[RowMapping] = (
+                        load_semantic_matches_for_vacancies_id_list(
+                            db, profile, vacancies_id
+                        )
+                    )
+                    num_vacancies = len(vacancies)
+                    logger.info(
+                        "Знайдено %s вакансій за семантичною дистанцією для профіля %s",
+                        num_vacancies,
+                        profile.id,
+                    )
+                    full_filtered_vacancies = filter_vacancies_by_keywords(
+                        vacancies, profile.include_keywords, profile.exclude_keywords
+                    )
+                    num_filtered_vacancies = len(full_filtered_vacancies)
+                    logger.info(
+                        "Відсіяно %s з %s вакансій за keyword_filter для профіля %s",
+                        num_vacancies - num_filtered_vacancies,
+                        num_vacancies,
+                        profile.id,
+                    )
+                    logger.info(
+                        "Всього %s вакансій відправляються на фільтрацію LLM для профіля %s",
+                        num_filtered_vacancies,
+                        profile.id,
+                    )
+                    profile_data = Profile(
+                        id=profile.id,
+                        user_id=profile.user_id,
+                        query_text=profile.query_text,
+                        cv_file=profile.cv_file,
+                        mime_type=profile.mime_type,
+                    )
+                    candidates_llm_filtering.append(
+                        LLMCandidate(
+                            profile_data=profile_data, vacancies=full_filtered_vacancies
+                        )
+                    )
+                else:
+                    vacancies: Sequence[RowMapping] = load_vacancies_by_id_list(
+                        db=db, vac_ids=vacancies_id
+                    )
+                    num_vacancies = len(vacancies)
+                    logger.info(
+                        "Знайдено %s вакансій для профіля %s", num_vacancies, profile.id
+                    )
+                    full_filtered_vacancies = filter_vacancies_by_keywords(
+                        vacancies, profile.include_keywords, profile.exclude_keywords
+                    )
+                    num_filtered_vacancies = len(full_filtered_vacancies)
+                    logger.info(
+                        "Відсіяно %s з %s за keyword_filter для профіля %s",
+                        num_vacancies - num_filtered_vacancies,
+                        num_vacancies,
+                        profile.id,
+                    )
+                    keyword_matches = [
+                        MatchData(
+                            user_id=profile.user_id,
+                            profile_id=profile.id,
+                            vacancy_id=v["id"],
+                            semantic_score=None,
+                            confidence=None,
+                            reason="keyword_filter",
+                        )
+                        for v in full_filtered_vacancies
+                    ]
+                    matches.extend(keyword_matches)
+
+                # mark profile as processed only if no exception
+                profile.last_matched_at = run_started_at
+            except Exception:
+                exc = traceback.format_exc()
+                logger.exception("Error processing profile %s", getattr(profile, "id", "<unknown>"))
+                exeptions_list.append({"stage": "profile_processing", "profile_id": getattr(profile, "id", None), "error": exc})
+                # continue with next profile
                 continue
 
-            if profile.embedding:
-                vacancies: Sequence[RowMapping] = (
-                    load_semantic_matches_for_vacancies_id_list(
-                        db, profile, vacancies_id
-                    )
-                )
-                num_vacancies = len(vacancies)
-                logger.info(
-                    "Знайдено %s вакансій за семантичною дистанцією для профіля %s",
-                    num_vacancies,
-                    profile.id,
-                )
-                full_filtered_vacancies = filter_vacancies_by_keywords(
-                    vacancies, profile.include_keywords, profile.exclude_keywords
-                )
-                num_filtered_vacancies = len(full_filtered_vacancies)
-                logger.info(
-                    "Відсіяно %s з %s вакансій за keyword_filter для профіля %s",
-                    num_vacancies - num_filtered_vacancies,
-                    num_vacancies,
-                    profile.id,
-                )
-                logger.info(
-                    "Всього %s вакансій відправляються на фільтрацію LLM для профіля %s",
-                    num_filtered_vacancies,
-                    profile.id,
-                )
-                profile_data = Profile(
-                    id=profile.id,
-                    user_id=profile.user_id,
-                    query_text=profile.query_text,
-                    cv_file=profile.cv_file,
-                    mime_type=profile.mime_type,
-                )
-                candidates_llm_filtering.append(
-                    LLMCandidate(
-                        profile_data=profile_data, vacancies=full_filtered_vacancies
-                    )
-                )
-            else:
-                vacancies: Sequence[RowMapping] = load_vacancies_by_id_list(
-                    db=db, vac_ids=vacancies_id
-                )
-                num_vacancies = len(vacancies)
-                logger.info(
-                    "Знайдено %s вакансій для профіля %s", num_vacancies, profile.id
-                )
-                full_filtered_vacancies = filter_vacancies_by_keywords(
-                    vacancies, profile.include_keywords, profile.exclude_keywords
-                )
-                num_filtered_vacancies = len(full_filtered_vacancies)
-                logger.info(
-                    "Відсіяно %s з %s за keyword_filter для профіля %s",
-                    num_vacancies - num_filtered_vacancies,
-                    num_vacancies,
-                    profile.id,
-                )
-                keyword_matches = [
-                    MatchData(
-                        user_id=profile.user_id,
-                        profile_id=profile.id,
-                        vacancy_id=v["id"],
-                        semantic_score=None,
-                        confidence=None,
-                        reason="keyword_filter",
-                    )
-                    for v in full_filtered_vacancies
-                ]
-                matches.extend(keyword_matches)
-            profile.last_matched_at = run_started_at
-        llm_matches: list[MatchData] = await get_matches_list_for_all_profiles(
-            candidates_llm_filtering, LLM_MODEL_NAME
-        )
-        logger.info("-----------LLM matches: %s--------------", len(llm_matches))
-        matches.extend(llm_matches)
-        save_matches_bulk(db, matches)
-        logger.info("Всього за сесію додано %s збігів", len(matches))
+        # Run LLM filtering for candidates collected from successful profile processing
+        try:
+            llm_matches: list[MatchData] = await get_matches_list_for_all_profiles(
+                candidates_llm_filtering, LLM_MODEL_NAME
+            )
+            logger.info("-----------LLM matches: %s--------------", len(llm_matches))
+            matches.extend(llm_matches)
+            matches.extend(llm_matches)
+        except Exception:
+            exc = traceback.format_exc()
+            logger.exception("LLM filtering failed")
+            exeptions_list.append({"stage": "llm_filtering", "error": exc})
+            llm_matches = []
+
+        # Try saving matches; capture exceptions
+        try:
+            save_matches_bulk(db, matches)
+            logger.info("Всього за сесію додано %s збігів", len(matches))
+        except Exception:
+            exc = traceback.format_exc()
+            logger.exception("Saving matches failed")
+            exeptions_list.append({"stage": "save_matches", "error": exc})
+
+        # Update state only if no exceptions happened during processing
+        if not exeptions_list:
+            try:
+                update_state_with_db_now(db)
+            except Exception:
+                exc = traceback.format_exc()
+                logger.exception("Failed to update state with DB now")
+                exeptions_list.append({"stage": "update_state", "error": exc})
+
+        # If exceptions occurred, log them at the end
+        if exeptions_list:
+            logger.error("Exceptions occurred during filtering run:")
+            for idx, ex in enumerate(exeptions_list, start=1):
+                logger.error("%s: %s", idx, ex)
+
 
 
 if __name__ == "__main__":

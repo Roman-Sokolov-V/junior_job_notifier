@@ -250,13 +250,21 @@ def delete_vacancies_not_seen_since(db: Session, stale_cutoff: datetime):
     stmt = delete(Vacancy).where(Vacancy.last_seen_at < stale_cutoff)
     db.execute(stmt)
 
+#
+# def get_last_run(db: Session) -> MatcherState | None:
+#     return db.execute(select(MatcherState)).scalar_one_or_none()
 
-def get_last_run(db: Session) -> MatcherState | None:
-    return db.execute(select(MatcherState)).scalar_one_or_none()
 
+def get_or_create_state(db: Session) -> MatcherState:
+    state =db.execute(select(MatcherState)).scalar_one_or_none()
+    if state is None:
+        state = MatcherState()
+        db.add(state)
+    return state
 
-def create_state(db: Session):
-    db.add(MatcherState())
+def update_state_with_db_now(db: Session):
+    state = get_or_create_state(db)
+    state.updated_at = get_db_now(db)
 
 
 def get_db_now(db: Session) -> datetime:

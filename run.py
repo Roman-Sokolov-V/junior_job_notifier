@@ -61,12 +61,11 @@ from twisted.internet import defer, reactor  # noqa: E402
 # Local
 from project_config import current_model_name, setup_logging, RUN_MODE  # noqa: E402
 from db.crud import (  # noqa: E402
-    create_state,
     delete_vacancies_not_seen_since,
-    get_last_run,
     get_vacancies_urls,
     mark_urls_as_seen,
     get_db_now,
+    get_or_create_state,
 )
 from db.session import get_db  # noqa: E402
 from filter.matching import filter_vacancies  # noqa: E402
@@ -121,7 +120,7 @@ def main(model: SentenceTransformer):
 
     @defer.inlineCallbacks
     def crawl_all():
-        # спершу всі легкі spider'и одночасно (як і раніше — паралельно)
+        # спершу всі легкі spider'и паралельно
         yield defer.DeferredList(
             [runner.crawl(spider) for spider in LIGHT_SPIDERS],
             consumeErrors=True,
@@ -143,15 +142,12 @@ def main(model: SentenceTransformer):
         mark_urls_as_seen(db, seen_existing_urls)
         now = get_db_now(db)
         stale_cutoff = now - timedelta(days=7)
-        state = get_last_run(db)
-        if state is None:
-            create_state(db)
-        else:
-            if state.updated_at > now - timedelta(days=3):
-                # видаляємо тільки ті, що не бачились довше певного порогу
-                # враховуючи можливі перерви в запуску
-                delete_vacancies_not_seen_since(db, stale_cutoff)
-            state.updated_at = now
+        state = get_or_create_state(db)
+        if state.updated_at > now - timedelta(days=3):
+            # видаляємо тільки ті, що не бачились довше певного порогу
+            # враховуючи можливі перерви в запуску
+            delete_vacancies_not_seen_since(db, stale_cutoff)
+
 
 
 async def run_pipeline(model):
