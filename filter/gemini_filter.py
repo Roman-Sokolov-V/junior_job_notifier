@@ -222,7 +222,6 @@ async def get_prompt_contents(
     )
 
     if has_cv:
-        #if SUPABASE_URL == "http://127.0.0.1:54321":
         logger.info("Downloading local CV bytes for profile_id=%s", profile_data.id)
         file_bytes = await download_file_bytes(
             a_supabase=a_supabase, full_path=profile_data.cv_file
@@ -242,32 +241,6 @@ async def get_prompt_contents(
             f"""LIST OF VACANCIES FOR EVALUATION:
             {vacancies_payload}""",
         ]
-        # else:
-        #     logger.info("Generating signed URL for CV for profile_id=%s", profile_data.id)
-        #     file_uri = await get_file_url(
-        #         a_supabase=a_supabase, full_path=profile_data.cv_file
-        #     )
-        #     if file_uri:
-        #         logger.info("Signed URL generated successfully for profile_id=%s", profile_data.id)
-        #         return [
-        #             f"""You filter IT vacancies. Analyze the list of vacancies and determine,
-        #             which of them correspond to the user's request and CV.
-        #
-        #             USER REQUEST:
-        #             {profile_data.query_text}
-        #
-        #             The user's CV is provided by the file below.""",
-        #             types.Part.from_uri(
-        #                 file_uri=file_uri,
-        #                 mime_type=profile_data.mime_type,
-        #             ),
-        #             f"""LIST OF VACANCIES FOR EVALUATION:
-        #             {vacancies_payload}""",
-        #         ]
-        #     logger.warning(
-        #         "Getting file_uri failed for profile_id=%s. Fallback to prompt without CV file.",
-        #         profile_data.id,
-        #     )
 
     return [
         f"""You filter IT vacancies. Analyze the list of vacancies and determine,
