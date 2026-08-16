@@ -198,7 +198,7 @@ import time
 
 from google.genai import Client
 from google.genai import types
-from google.genai.errors import APIError
+from google.genai.errors import APIError, ClientError
 from supabase import AsyncClient
 
 from db.supabase_client import get_async_supabase_client
@@ -327,12 +327,22 @@ async def get_matches_for_profile(
             gemini_client=gemini_client, model=model, contents=contents
         )
     except APIError as exc:
+        code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+        message = getattr(exc, "message", str(exc))
         logger.error(
             "Gemini APIError for profile_id=%s: status_code=%s, message=%s",
             data.profile_data.id,
-            getattr(exc, "code", "N/A"),
-            getattr(exc, "message", str(exc)),
+            code if code is not None else "N/A",
+            message,
         )
+        # If this is a client-side quota/resource error, re-raise so upstream (e.g., matching.filter_vacancies)
+        # can handle it (retry/abort). Matches errors like: google.genai.errors.ClientError: 429 RESOURCE_EXHAUSTED
+        if isinstance(exc, ClientError) or str(code) == "429" or (isinstance(message, str) and "RESOURCE_EXHAUSTED" in message.upper()):
+            logger.error(
+                "Gemini APIError is a client quota/resource error (profile_id=%s); re-raising to be handled upstream",
+                data.profile_data.id,
+            )
+            raise
         return []
     except Exception:
         logger.exception("Unexpected failure in Gemini filter for profile_id=%s", data.profile_data.id)
