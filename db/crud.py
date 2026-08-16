@@ -247,17 +247,17 @@ def delete_vacancies_not_seen_since(db: Session, stale_cutoff: datetime):
     db.execute(stmt)
 
 
+def get_state(db: Session) -> MatcherState | None:
+    return db.execute(select(MatcherState)).scalar_one_or_none()
 
-def get_or_create_state(db: Session) -> MatcherState:
-    state =db.execute(select(MatcherState)).scalar_one_or_none()
-    if state is None:
-        state = MatcherState()
-        db.add(state)
-    return state
 
-def update_state_with_db_now(db: Session):
-    state = get_or_create_state(db)
-    state.updated_at = get_db_now(db)
+def create_or_update_state(db: Session):
+    stmt = insert(MatcherState).values(id=1)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=[MatcherState.id],
+        set_={"updated_at": func.now()}
+    )
+    db.execute(stmt)
 
 
 def get_db_now(db: Session) -> datetime:

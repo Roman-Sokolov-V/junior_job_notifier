@@ -65,7 +65,7 @@ from db.crud import (  # noqa: E402
     get_vacancies_urls,
     mark_urls_as_seen,
     get_db_now,
-    get_or_create_state,
+    get_state,
 )
 from db.session import get_db  # noqa: E402
 from filter.matching import filter_vacancies  # noqa: E402
@@ -142,8 +142,8 @@ def main(model: SentenceTransformer):
         mark_urls_as_seen(db, seen_existing_urls)
         now = get_db_now(db)
         stale_cutoff = now - timedelta(days=7)
-        state = get_or_create_state(db)
-        if state.updated_at > now - timedelta(days=3):
+        state = get_state(db)
+        if state is not None and state.updated_at > now - timedelta(days=3):
             # видаляємо тільки ті, що не бачились довше певного порогу
             # враховуючи можливі перерви в запуску
             delete_vacancies_not_seen_since(db, stale_cutoff)

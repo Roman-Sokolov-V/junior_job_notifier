@@ -16,7 +16,7 @@ from db.crud import (
     update_vacancy_embeddings,
     get_db_now,
     save_matches_bulk,
-    update_state_with_db_now,
+    create_or_update_state,
 )
 from db.models import UserProfile
 from db.session import get_db
@@ -208,7 +208,7 @@ async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
         # Update state only if no exceptions happened during processing
         if not exeptions_list:
             try:
-                update_state_with_db_now(db)
+                create_or_update_state(db)
             except Exception:
                 exc = traceback.format_exc()
                 logger.exception("Failed to update state with DB now")
