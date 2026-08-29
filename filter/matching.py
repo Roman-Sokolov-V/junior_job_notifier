@@ -69,6 +69,7 @@ def filter_vacancies_by_keywords(
 
 
 async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
+    logger.info("=" * 70)
     logger.info("Запуск фільтрації вакансій")
     exeptions_list = []
     with get_db() as db:
@@ -137,11 +138,12 @@ async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
                         cv_file=profile.cv_file,
                         mime_type=profile.mime_type,
                     )
-                    candidates_llm_filtering.append(
-                        LLMCandidate(
-                            profile_data=profile_data, vacancies=full_filtered_vacancies
+                    if full_filtered_vacancies:
+                        candidates_llm_filtering.append(
+                            LLMCandidate(
+                                profile_data=profile_data, vacancies=full_filtered_vacancies
+                            )
                         )
-                    )
                 else:
                     vacancies: Sequence[RowMapping] = load_vacancies_by_id_list(
                         db=db, vac_ids=vacancies_id
@@ -182,6 +184,9 @@ async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
                 # continue with next profile
                 continue
 
+        if not candidates_llm_filtering:
+            logger.warning("--------------------No candidates found for LLM filtering------------------------")
+            return
         # Run LLM filtering for candidates collected from successful profile processing
         try:
             llm_matches: list[MatchData] = await get_matches_list_for_all_profiles(
@@ -189,7 +194,7 @@ async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
             )
             logger.info("-----------LLM matches: %s--------------", len(llm_matches))
             matches.extend(llm_matches)
-            matches.extend(llm_matches)
+
         except Exception:
             exc = traceback.format_exc()
             logger.exception("LLM filtering failed")
