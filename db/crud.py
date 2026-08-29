@@ -263,3 +263,8 @@ def create_or_update_state(db: Session):
 def get_db_now(db: Session) -> datetime:
     """Отримує поточний час з боку сервера БД """
     return db.execute(select(func.now())).scalar_one()
+
+
+def get_telegram_id(db: Session, user_id: int) -> int:
+    stmt = select(User.telegram_user_id).where(User.id == user_id)
+    return db.execute(stmt).scalar_one()

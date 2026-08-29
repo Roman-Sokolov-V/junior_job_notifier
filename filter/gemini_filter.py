@@ -9,8 +9,9 @@ from supabase import AsyncClient
 
 from db.supabase_client import get_async_supabase_client
 from filter.schemas import BatchFilterResponse, LLMCandidate, MatchData, Profile
-from project_config import GEMINI_API_KEY, SUPABASE_URL
-from storage.crud import download_file_bytes, get_file_url
+from project_config import GEMINI_API_KEY
+from storage.crud import download_file_bytes
+from telegram.notification import not_found_notification
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +170,7 @@ async def get_matches_for_profile(
             data.profile_data.id,
             best_not_matched[:5],
         )
+        await not_found_notification(best_not_matched[:5], data.profile_data.user_id)
 
     return match_list
 
@@ -178,6 +180,7 @@ async def get_matches_list_for_all_profiles(
         model: str,
 ) -> list[MatchData]:
     profiles_count = len(list_data)
+    logger.info("=" * 70)
     logger.info("=== Starting batch filtering for %d profile(s) ===", profiles_count)
 
     if profiles_count == 0:
