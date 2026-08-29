@@ -53,9 +53,6 @@ class NewxelSpider(MixinHtml2Text, scrapy.Spider):
             yield scrapy.Request(href, callback=self.parse_detail)
 
     def parse_detail(self, response):
-        listing_context = self.extract_and_clean_all_text(
-            response, "career-single-info"
-        )
         title = response.xpath("//h1/text()").extract_first()
         # description = self.extract_and_clean_all_text(response, "career-single-content")
         description = self.to_markdown(response.css(".career-single-content").get())
@@ -92,7 +89,6 @@ class NewxelSpider(MixinHtml2Text, scrapy.Spider):
             "title": title,
             "url": response.url,
             "description_text": description,
-            "listing_context": listing_context,
             "requirements": requirements,
             "nice_to_have": nice_to_have,
         }
