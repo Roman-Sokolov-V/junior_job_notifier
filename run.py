@@ -59,7 +59,7 @@ from sentence_transformers import SentenceTransformer  # noqa: E402
 from twisted.internet import defer, reactor  # noqa: E402
 
 # Local
-from project_config import current_model_name, setup_logging, RUN_MODE  # noqa: E402
+from project_config import current_model_name, setup_logging, RUN_MODE, LOG_LEVEL  # noqa: E402
 from db.crud import (  # noqa: E402
     delete_vacancies_not_seen_since,
     get_vacancies_urls,
@@ -107,7 +107,7 @@ HEAVY_SPIDERS = [
 
 
 def main(model: SentenceTransformer):
-    configure_logging()
+    configure_logging(install_root_handler=False)
     settings = _settings_for_reactor
     with get_db() as db:
         existing_urls = set(get_vacancies_urls(db))

@@ -13,7 +13,7 @@ AI_MODEL_NAME = os.getenv("AI_MODEL_NAME")
 current_model_name = os.getenv("AI_MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 
 
-LOG_LEVEL = os.getenv("LOG_LEVEL", "WARNING")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 LOGGING_CONFIG = {
     "version": 1,
@@ -34,7 +34,7 @@ LOGGING_CONFIG = {
     },
     "loggers": {
         "": {  # Корневий логер для всього проєкту
-            "handlers": ["console"],           # Тепер цей обробник існує!
+            "handlers": ["console"],
             "level": LOG_LEVEL,
             "propagate": True,
         },
