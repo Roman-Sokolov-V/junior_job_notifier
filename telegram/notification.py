@@ -8,8 +8,8 @@ import dotenv
 from sqlalchemy import Row
 
 from db.session import get_db
-from db.crud import get_not_notified, bulk_mark_notified
-
+from db.crud import get_not_notified, bulk_mark_notified, get_telegram_id
+from filter.schemas import MatchData
 
 logger = logging.getLogger(__name__)
 
@@ -80,3 +80,40 @@ async def start_notification() -> None:
         logging.info("Успішно повідомлено %s з %s", num_notified, num_need_to_notify)
     else:
         logging.warning("Жодного успішного повідомлення")
+
+async def not_found_notification(data: list[MatchData], user_id: int) -> None:
+    logging.info("______________not_found notification")
+    with get_db() as db:
+        telegram_user_id = get_telegram_id(db, user_id)
+    if telegram_user_id:
+        top_not_matched = "\n\n<b>".join(
+            [
+                f"\n vac: {item.vacancy_id},"
+                f"\n semantic: {item.semantic_score},"
+                f"\n confidence: {item.confidence}"
+                f"\n reason: {item.reason}"
+                for
+                item
+                in data
+            ]
+        )
+        message = (
+            f"🌟 <b>На жаль сьогодні не знайдено жодної підходящої вакансії</b>\n\n"
+            f"📋 <b>Про всяк випадок ось рапорт топ 5 найкращих:\n"
+            f"{top_not_matched}"
+        )
+        payload = {
+            "chat_id": telegram_user_id,
+            "text": message,
+            "parse_mode": "HTML",
+        }
+
+        api_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+
+        async with AsyncClient() as client:
+            try:
+                response = await client.post(api_url, data=payload, timeout=10)
+                response.raise_for_status()
+            except Exception as e:
+                logging.error("Telegram error: %s", e)
+                return None
