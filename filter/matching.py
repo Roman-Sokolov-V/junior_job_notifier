@@ -23,6 +23,7 @@ from db.session import get_db
 from project_config import setup_logging, current_model_name, LLM_MODEL_NAME
 from filter.gemini_filter import get_matches_list_for_all_profiles
 from filter.schemas import LLMCandidate, MatchData, Profile
+from telegram.notification import not_found_notification
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,53 @@ def filter_vacancies_by_keywords(
     ]
     return vacancies_list
 
+async def get_profile_llm_filtering_candidates(
+        db,
+        profile: UserProfile,
+        vacancies_id: Sequence[int]
+) -> LLMCandidate | None:
+    vacancies: Sequence[RowMapping] = (
+        load_semantic_matches_for_vacancies_id_list(
+            db, profile, vacancies_id
+        )
+    )
+    num_vacancies = len(vacancies)
+    logger.info(
+        "Знайдено %s вакансій за семантичною дистанцією для профіля %s",
+        num_vacancies,
+        profile.id,
+    )
+    full_filtered_vacancies = filter_vacancies_by_keywords(
+        vacancies, profile.include_keywords, profile.exclude_keywords
+    )
+    num_filtered_vacancies = len(full_filtered_vacancies)
+    logger.info(
+        "Відсіяно %s з %s вакансій за keyword_filter для профіля %s",
+        num_vacancies - num_filtered_vacancies,
+        num_vacancies,
+        profile.id,
+    )
+    if full_filtered_vacancies:
+        logger.info(
+            "Всього %s вакансій відправляються на фільтрацію LLM для профіля %s",
+            num_filtered_vacancies,
+            profile.id,
+        )
+        profile_data = Profile(
+            id=profile.id,
+            user_id=profile.user_id,
+            query_text=profile.query_text,
+            cv_file=profile.cv_file,
+            mime_type=profile.mime_type,
+        )
+        return LLMCandidate(
+                profile_data=profile_data, vacancies=full_filtered_vacancies
+            )
+
+    else:
+        await not_found_notification(vacancies=vacancies, user_id=profile.user_id)
+        return None
+
 
 async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
     logger.info("=" * 70)
@@ -105,45 +153,8 @@ async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
                     continue
 
                 if profile.embedding:
-                    vacancies: Sequence[RowMapping] = (
-                        load_semantic_matches_for_vacancies_id_list(
-                            db, profile, vacancies_id
-                        )
-                    )
-                    num_vacancies = len(vacancies)
-                    logger.info(
-                        "Знайдено %s вакансій за семантичною дистанцією для профіля %s",
-                        num_vacancies,
-                        profile.id,
-                    )
-                    full_filtered_vacancies = filter_vacancies_by_keywords(
-                        vacancies, profile.include_keywords, profile.exclude_keywords
-                    )
-                    num_filtered_vacancies = len(full_filtered_vacancies)
-                    logger.info(
-                        "Відсіяно %s з %s вакансій за keyword_filter для профіля %s",
-                        num_vacancies - num_filtered_vacancies,
-                        num_vacancies,
-                        profile.id,
-                    )
-                    logger.info(
-                        "Всього %s вакансій відправляються на фільтрацію LLM для профіля %s",
-                        num_filtered_vacancies,
-                        profile.id,
-                    )
-                    profile_data = Profile(
-                        id=profile.id,
-                        user_id=profile.user_id,
-                        query_text=profile.query_text,
-                        cv_file=profile.cv_file,
-                        mime_type=profile.mime_type,
-                    )
-                    if full_filtered_vacancies:
-                        candidates_llm_filtering.append(
-                            LLMCandidate(
-                                profile_data=profile_data, vacancies=full_filtered_vacancies
-                            )
-                        )
+                    llm_candidates = get_profile_llm_filtering_candidates(db=db, profile=profile, vacancies_id=vacancies_id)
+                    candidates_llm_filtering.append(llm_candidates)
                 else:
                     vacancies: Sequence[RowMapping] = load_vacancies_by_id_list(
                         db=db, vac_ids=vacancies_id
@@ -162,18 +173,21 @@ async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
                         num_vacancies,
                         profile.id,
                     )
-                    keyword_matches = [
-                        MatchData(
-                            user_id=profile.user_id,
-                            profile_id=profile.id,
-                            vacancy_id=v["id"],
-                            semantic_score=None,
-                            confidence=None,
-                            reason="keyword_filter",
-                        )
-                        for v in full_filtered_vacancies
-                    ]
-                    matches.extend(keyword_matches)
+                    if full_filtered_vacancies:
+                        keyword_matches = [
+                            MatchData(
+                                user_id=profile.user_id,
+                                profile_id=profile.id,
+                                vacancy_id=v["id"],
+                                semantic_score=None,
+                                confidence=None,
+                                reason="keyword_filter",
+                            )
+                            for v in full_filtered_vacancies
+                        ]
+                        matches.extend(keyword_matches)
+                    else:
+                        await not_found_notification(vacancies=vacancies, user_id=profile.user_id)
 
                 # mark profile as processed only if no exception
                 profile.last_matched_at = run_started_at
