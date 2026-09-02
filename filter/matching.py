@@ -153,8 +153,10 @@ async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
                     continue
 
                 if profile.embedding:
-                    llm_candidates = get_profile_llm_filtering_candidates(db=db, profile=profile, vacancies_id=vacancies_id)
-                    candidates_llm_filtering.append(llm_candidates)
+                    llm_candidates = await get_profile_llm_filtering_candidates(db=db, profile=profile, vacancies_id=vacancies_id)
+                    if llm_candidates:
+                        candidates_llm_filtering.append(llm_candidates)
+
                 else:
                     vacancies: Sequence[RowMapping] = load_vacancies_by_id_list(
                         db=db, vac_ids=vacancies_id
