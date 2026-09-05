@@ -39,4 +39,4 @@ class MatchData(BaseModel):
     vacancy_id: int
     semantic_score: float | None
     confidence: float | None
-    reason: str
+    reason: str | None

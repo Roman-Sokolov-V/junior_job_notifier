@@ -110,16 +110,46 @@ async def get_profile_llm_filtering_candidates(
         return LLMCandidate(
                 profile_data=profile_data, vacancies=full_filtered_vacancies
             )
+    return None
 
+def get_keyword_matches(vacancies:Sequence[RowMapping], profile: UserProfile) -> list[MatchData] | None:
+
+    num_vacancies = len(vacancies)
+    logger.info(
+        "Знайдено %s вакансій для профіля %s", num_vacancies, profile.id
+    )
+    full_filtered_vacancies = filter_vacancies_by_keywords(
+        vacancies,
+        profile.include_keywords,
+        profile.exclude_keywords
+    )
+    num_filtered_vacancies = len(full_filtered_vacancies)
+    logger.info(
+        "Відсіяно %s з %s за keyword_filter для профіля %s",
+        num_vacancies - num_filtered_vacancies,
+        num_vacancies,
+        profile.id,
+    )
+    if full_filtered_vacancies:
+        keyword_matches = [
+            MatchData(
+                user_id=profile.user_id,
+                profile_id=profile.id,
+                vacancy_id=v["id"],
+                semantic_score=None,
+                confidence=None,
+                reason="keyword_filter",
+            )
+            for v in full_filtered_vacancies
+        ]
+        return keyword_matches
     else:
-        await not_found_notification(vacancies=vacancies, user_id=profile.user_id)
         return None
-
 
 async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
     logger.info("=" * 70)
     logger.info("Запуск фільтрації вакансій")
-    exeptions_list = []
+    exceptions_list = []
     with get_db() as db:
         run_started_at = get_db_now(db)
         logger.info("Поточний час бд %s", run_started_at)
@@ -161,42 +191,18 @@ async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
                     vacancies: Sequence[RowMapping] = load_vacancies_by_id_list(
                         db=db, vac_ids=vacancies_id
                     )
-                    num_vacancies = len(vacancies)
-                    logger.info(
-                        "Знайдено %s вакансій для профіля %s", num_vacancies, profile.id
-                    )
-                    full_filtered_vacancies = filter_vacancies_by_keywords(
-                        vacancies, profile.include_keywords, profile.exclude_keywords
-                    )
-                    num_filtered_vacancies = len(full_filtered_vacancies)
-                    logger.info(
-                        "Відсіяно %s з %s за keyword_filter для профіля %s",
-                        num_vacancies - num_filtered_vacancies,
-                        num_vacancies,
-                        profile.id,
-                    )
-                    if full_filtered_vacancies:
-                        keyword_matches = [
-                            MatchData(
-                                user_id=profile.user_id,
-                                profile_id=profile.id,
-                                vacancy_id=v["id"],
-                                semantic_score=None,
-                                confidence=None,
-                                reason="keyword_filter",
-                            )
-                            for v in full_filtered_vacancies
-                        ]
+                    keyword_matches = get_keyword_matches(vacancies=vacancies, profile=profile)
+                    if keyword_matches:
                         matches.extend(keyword_matches)
                     else:
-                        await not_found_notification(vacancies=vacancies, user_id=profile.user_id)
+                        logger.info("No matches for profile %s", profile.id)
 
                 # mark profile as processed only if no exception
                 profile.last_matched_at = run_started_at
             except Exception:
                 exc = traceback.format_exc()
                 logger.exception("Error processing profile %s", getattr(profile, "id", "<unknown>"))
-                exeptions_list.append({"stage": "profile_processing", "profile_id": getattr(profile, "id", None), "error": exc})
+                exceptions_list.append({"stage": "profile_processing", "profile_id": getattr(profile, "id", None), "error": exc})
                 # continue with next profile
                 continue
 
@@ -214,31 +220,31 @@ async def filter_vacancies(model: SentenceTransformer | None = None) -> None:
         except Exception:
             exc = traceback.format_exc()
             logger.exception("LLM filtering failed")
-            exeptions_list.append({"stage": "llm_filtering", "error": exc})
-            llm_matches = []
+            exceptions_list.append({"stage": "llm_filtering", "error": exc})
 
         # Try saving matches; capture exceptions
+
         try:
-            save_matches_bulk(db, matches)
+            save_matches_bulk(db=db, matches_data=matches)
             logger.info("Всього за сесію додано %s збігів", len(matches))
         except Exception:
             exc = traceback.format_exc()
             logger.exception("Saving matches failed")
-            exeptions_list.append({"stage": "save_matches", "error": exc})
+            exceptions_list.append({"stage": "save_matches", "error": exc})
 
         # Update state only if no exceptions happened during processing
-        if not exeptions_list:
+        if not exceptions_list:
             try:
                 create_or_update_state(db)
             except Exception:
                 exc = traceback.format_exc()
                 logger.exception("Failed to update state with DB now")
-                exeptions_list.append({"stage": "update_state", "error": exc})
+                exceptions_list.append({"stage": "update_state", "error": exc})
 
         # If exceptions occurred, log them at the end
-        if exeptions_list:
+        if exceptions_list:
             logger.error("Exceptions occurred during filtering run:")
-            for idx, ex in enumerate(exeptions_list, start=1):
+            for idx, ex in enumerate(exceptions_list, start=1):
                 logger.error("%s: %s", idx, ex)
 
 

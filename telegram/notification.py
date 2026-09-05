@@ -82,43 +82,29 @@ async def start_notification() -> None:
         logging.warning("Жодного успішного повідомлення")
 
 async def not_found_notification(
-        user_id: int, data: list[MatchData] | None = None,
-        vacancies: Sequence[RowMapping] | None = None
+        user_id: int,
+        data: list[MatchData]
 ) -> None:
-    logging.info("______________not_found notification")
+    logging.info("______________not_found notification_____________")
     with get_db() as db:
-        telegram_user_id = get_telegram_id(db, user_id)
+        try:
+            telegram_user_id = get_telegram_id(db, user_id)
+        except Exception as e:
+            logger.error(e)
+            return None
     if telegram_user_id:
-        if data:
-            top_not_matched = "\n\n<b>".join(
-                [
-                    f"\n vac: {item.vacancy_id},"
-                    f"\n semantic: {item.semantic_score},"
-                    f"\n confidence: {item.confidence}"
-                    f"\n reason: {item.reason}"
-                    for
-                    item
-                    in data
-                ]
-            )
-        elif vacancies:
-            sorted_vacancies = sorted(
-                vacancies,
-                key=lambda vac: vac.similarity_expr,
-                reverse=True
-            )[:5]
-            top_not_matched = "\n\n<b>".join(
-                [
-                    f"\n vac: {item.vacancy_id},"
-                    f"\n semantic: {item.similarity_expr},"
-                    f"\n title: {item.title}"
-                    f"\n url: {item.url}"
-                    f"\n description: {item.description_text[:50]}..."
-                    for
-                    item
-                    in sorted_vacancies
-                ]
-            )
+        top_not_matched = "\n\n<b>".join(
+            [
+                f"\n vac: {item.vacancy_id},"
+                f"\n semantic: {item.semantic_score},"
+                f"\n confidence: {item.confidence}"
+                f"\n reason: {item.reason}"
+                for
+                item
+                in data
+            ]
+        )
+
         message = (
             f"🌟 <b>На жаль сьогодні не знайдено жодної підходящої вакансії</b>\n\n"
             f"📋 <b>Про всяк випадок ось рапорт про топ 5 найкращих:\n"

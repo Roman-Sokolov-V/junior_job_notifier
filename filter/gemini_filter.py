@@ -31,7 +31,8 @@ async def get_prompt_contents(
     if has_cv:
         logger.info("Downloading local CV bytes for profile_id=%s", profile_data.id)
         file_bytes = await download_file_bytes(
-            a_supabase=a_supabase, full_path=profile_data.cv_file
+            a_supabase=a_supabase,
+            full_path=profile_data.cv_file
         )
         return [
             f"""You filter IT vacancies. Analyze the list of vacancies and determine,
@@ -81,7 +82,7 @@ async def get_response(gemini_client: Client, model: str, contents):
 
 async def get_matches_for_profile(
         gemini_client: Client, a_supabase: AsyncClient, data: LLMCandidate, model: str
-) -> list[MatchData]:
+) -> list[MatchData] | None:
     """Один запит до Gemini для одного профілю."""
     vacancies_count = len(data.vacancies)
     logger.info(
@@ -149,8 +150,10 @@ async def get_matches_for_profile(
         len(match_list),
         len(batch_result.evaluations) if batch_result else 0,
     )
+    if match_list:
+        return match_list
 
-    if not match_list and batch_result:
+    else:
         not_match_list = [
             MatchData(
                 user_id=data.profile_data.user_id,
@@ -170,9 +173,11 @@ async def get_matches_for_profile(
             data.profile_data.id,
             best_not_matched[:5],
         )
-        await not_found_notification(best_not_matched[:5], data.profile_data.user_id)
-
-    return match_list
+        await not_found_notification(
+            user_id=data.profile_data.user_id,
+            data=best_not_matched[:5]
+        )
+        return None
 
 
 async def get_matches_list_for_all_profiles(
