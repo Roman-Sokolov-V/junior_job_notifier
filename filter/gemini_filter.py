@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 import time
 
 from google.genai import Client
@@ -103,32 +104,72 @@ async def get_matches_for_profile(
         vacancies_payload=vacancies_payload,
     )
 
-    try:
-        response = await get_response(
-            gemini_client=gemini_client, model=model, contents=contents
-        )
-    except APIError as exc:
-        code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
-        message = getattr(exc, "message", str(exc))
-        logger.error(
-            "Gemini APIError for profile_id=%s: status_code=%s, message=%s",
-            data.profile_data.id,
-            code if code is not None else "N/A",
-            message,
-        )
-        # If this is a client-side quota/resource error, re-raise so upstream (e.g., matching.filter_vacancies)
-        # can handle it (retry/abort). Matches errors like: google.genai.errors.ClientError: 429 RESOURCE_EXHAUSTED
-        if isinstance(exc, ClientError) or str(code) == "429" or (isinstance(message, str) and "RESOURCE_EXHAUSTED" in message.upper()):
-            logger.error(
-                "Gemini APIError is a client quota/resource error (profile_id=%s); re-raising to be handled upstream",
-                data.profile_data.id,
+    # Retry mechanism with exponential backoff for transient errors
+    max_retries = 5
+    base_delay = 1.0  # seconds
+    delay = base_delay
+    for attempt in range(max_retries + 1):
+        try:
+            response = await get_response(
+                gemini_client=gemini_client, model=model, contents=contents
             )
-            raise
-        return []
-    except Exception:
-        logger.exception("Unexpected failure in Gemini filter for profile_id=%s", data.profile_data.id)
-        return []
+            # If we get here, request succeeded
+            break
+        except APIError as exc:
+            code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+            message = getattr(exc, "message", str(exc))
+            # Define transient status codes that warrant retry
+            transient_codes = (502, 503, 504, 429)
+            if code in transient_codes:
+                if attempt == max_retries:
+                    logger.error(
+                        "Gemini APIError after %d retries for profile_id=%s: status_code=%s, message=%s",
+                        max_retries,
+                        data.profile_data.id,
+                        code,
+                        message,
+                    )
+                    # If this is a client-side quota/resource error, re-raise so upstream can handle it
+                    if isinstance(exc, ClientError) or str(code) == "429" or (isinstance(message, str) and "RESOURCE_EXHAUSTED" in message.upper()):
+                        logger.error(
+                            "Gemini APIError is a client quota/resource error (profile_id=%s); re-raising to be handled upstream",
+                            data.profile_data.id,
+                        )
+                        raise
+                    return []  # after max retries, treat as failure and return empty list
+                jitter = random.uniform(0, delay * 0.1)  # 10% jitter
+                sleep_time = delay + jitter
+                logger.warning(
+                    "Gemini APIError (status_code=%s) on attempt %d/%d for profile_id=%s. Retrying after %.2f seconds...",
+                    code,
+                    attempt + 1,
+                    max_retries + 1,
+                    data.profile_data.id,
+                    sleep_time,
+                )
+                await asyncio.sleep(sleep_time)
+                delay *= 2  # exponential backoff
+            else:
+                # Non-transient APIError, handle as before
+                logger.error(
+                    "Gemini APIError for profile_id=%s: status_code=%s, message=%s",
+                    data.profile_data.id,
+                    code if code is not None else "N/A",
+                    message,
+                )
+                # If this is a client-side quota/resource error, re-raise so upstream can handle it
+                if isinstance(exc, ClientError) or str(code) == "429" or (isinstance(message, str) and "RESOURCE_EXHAUSTED" in message.upper()):
+                    logger.error(
+                        "Gemini APIError is a client quota/resource error (profile_id=%s); re-raising to be handled upstream",
+                        data.profile_data.id,
+                    )
+                    raise
+                return []
+        except Exception:
+            logger.exception("Unexpected failure in Gemini filter for profile_id=%s", data.profile_data.id)
+            return []
 
+    # If we exited loop via break, we have a successful response
     batch_result: BatchFilterResponse = response.parsed
 
     match_list = [
