@@ -1,5 +1,7 @@
 import logging
 import os
+import logging.config
+import asyncio
 from typing import Sequence
 
 from dotenv import load_dotenv
@@ -23,7 +25,7 @@ from db.session import get_db
 from project_config import setup_logging, current_model_name, LLM_MODEL_NAME
 from filter.gemini_filter import get_matches_list_for_all_profiles
 from filter.schemas import LLMCandidate, MatchData, Profile
-from telegram.notification import not_found_notification
+
 
 logger = logging.getLogger(__name__)
 
@@ -255,4 +257,5 @@ if __name__ == "__main__":
     setup_logging()
     if not db_url:
         raise ValueError("DATABASE_URL is not set")
-    filter_vacancies()
+    model = SentenceTransformer(current_model_name)
+    asyncio.run(filter_vacancies(model))

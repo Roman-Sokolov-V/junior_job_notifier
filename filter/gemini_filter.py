@@ -218,7 +218,7 @@ async def get_matches_for_profile(
             user_id=data.profile_data.user_id,
             data=best_not_matched[:5]
         )
-        return None
+        return []
 
 
 async def get_matches_list_for_all_profiles(
