@@ -124,6 +124,27 @@ docker compose --env-file .env.docker up
 
 **Note:** the image includes Chromium for **scrapy-playwright**. It is large by design. For production you can later split "scraper" and "matcher" images or use a slimmer base if you drop Playwright from a service.
 
+### 4. Proxy Rotation (Optional)
+
+To avoid IP blocking and rate limiting during scraping, you can enable proxy rotation:
+
+1. **Configure proxies** using one of these methods:
+   - Set `PROXY_LIST` environment variable (comma-separated list)
+   - Create a `proxies.txt` file with one proxy per line
+   - Supported formats: `host:port`, `http://host:port`, `http://user:pass@host:port`
+
+2. **Enable proxy rotation** by setting:
+   ```bash
+   PROXY_ROTATION_ENABLED=true
+   ```
+
+Example `.env.docker` configuration:
+```
+# ... other env vars ...
+PROXY_ROTATION_ENABLED=true
+PROXY_LIST=http://proxy1.example.com:8080,http://proxy2.example.com:8080
+```
+
 Users, their search profiles, and matching results all live in Supabase and are managed exclusively through [junior_job_notifier_bot](https://github.com/Roman-Sokolov-V/junior_job_notifier_bot) — manual editing of the `users` / `user_profiles` tables is no longer necessary or recommended.
 
 ---
@@ -161,10 +182,6 @@ I am working on expanding and improving the scraper. The following milestones ar
 
 3. **🌐 Multi-Platform Expansion:** Continue adding new spiders to cover more individual companies' career pages.
 
-4. **🎯 Semantic Resume Match Score:** Develop a custom matching system that compares scraped vacancy descriptions against a user's CV/Resume using vector embeddings, calculating a "Match Score (%)" to prioritize the best opportunities.
-
-5. **📝 Smart Vacancy Summarization:** Implement automated text summarization to condense long job descriptions into concise, bulleted core requirements (key skills, salary, tech stack) directly within the Telegram alert.
-
 ---
 
 ### 📝 License
@@ -181,69 +198,3 @@ If you have any questions, suggestions, or would like to collaborate on this pro
 - **LinkedIn:** [roman-sokolov](https://www.linkedin.com/in/roman-sokolov-a7614330b/)
 - **Email:** roman.sokolov.developer@gmail.com
 
-### 3. Build and Run
-
-Two services: **`db`** (Postgres 16) and **`app`** (this project). On start, the app runs **`alembic upgrade head`** then your command (default: `uv run run.py`).
-
-```bash
-docker compose --env-file .env.docker build   # first build is slow (torch + Playwright)
-docker compose --env-file .env.docker up
-```
-
-**Note:** the image includes Chromium for **scrapy-playwright**. It is large by design. For production you can later split "scraper" and "matcher" images or use a slimmer base if you drop Playwright from a service.
-
-Users, their search profiles, and matching results all live in Supabase and are managed exclusively through [junior_job_notifier_bot](https://github.com/Roman-Sokolov-V/junior_job_notifier_bot) — manual editing of the `users` / `user_profiles` tables is no longer necessary or recommended.
-
----
-
-## 🤖 GitHub Actions CI/CD Automation
-
-The project includes a pre-configured GitHub Actions workflow that executes the scraping routine daily at 09:00 UTC (12:00 EET / 11:00 EEST), or anytime manually.
-
-Operationalizing in GitHub:
-
-**Push Everything:** Ensure `pyproject.toml` and `uv.lock` are committed to your GitHub repository so that the pipeline can mirror your exact local environment.
-
-**Configure Encrypted Secrets:**
-
-Go to your repository on GitHub: Settings ➡️ Secrets and variables ➡️ Actions.
-
-Click **New repository secret** and add the following keys:
-
-- `TELEGRAM_BOT_TOKEN`
-- `AI_MODEL_NAME`
-- `DATABASE_URL`
-
-**Triggering:** Check the Actions tab on GitHub to see execution logs, test manually via **Run workflow**, or leave it to run autonomously according to the cron schedule.
-
----
-
-### 📅 Roadmap & Upcoming Features (To-Do)
-
-We are actively working on expanding and improving the scraper. The following milestones are planned for future releases:
-
-1. **✅ Vector Search Migration (done):** Semantic matching now runs database-native via **pgvector**, with vacancy embeddings computed once at scrape time and cached in Postgres, and similarity search/top-K ranking pushed down to SQL. Current limitation: due to the embedding model's small context window, matching is done against a fragment of the vacancy (`requirements` + `nice_to_have`) rather than the full description — see the caveat above.
-
-2. **🧠 LLM-Based Full-Text Matching:** Add an LLM-powered matching pass over the *entire* vacancy description (not just a fragment), to complement or replace the current embedding-fragment approach and remove the context-window limitation described above.
-
-3. **🌐 Multi-Platform Expansion:** Continue adding new spiders to cover more individual companies' career pages.
-
-4. **🎯 Semantic Resume Match Score:** Develop a custom matching system that compares scraped vacancy descriptions against a user's CV/Resume using vector embeddings, calculating a "Match Score (%)" to prioritize the best opportunities.
-
-5. **📝 Smart Vacancy Summarization:** Implement automated text summarization to condense long job descriptions into concise, bulleted core requirements (key skills, salary, tech stack) directly within the Telegram alert.
-
----
-
-### 📝 License
-
-This project is open-source and available under the MIT License.
-
----
-
-### 📬 Contact & Connect
-
-If you have any questions, suggestions, or would like to collaborate on this project, feel free to reach out:
-
-- **Telegram:** [@Roman_Sokolo_v](https://t.me/Roman_Sokolo_v)
-- **LinkedIn:** [roman-sokolov](https://www.linkedin.com/in/roman-sokolov-a7614330b/)
-- **Email:** roman.sokolov.developer@gmail.com

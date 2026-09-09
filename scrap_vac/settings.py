@@ -29,6 +29,11 @@ ROBOTSTXT_OBEY = False
 CONCURRENT_REQUESTS_PER_DOMAIN = 1
 DOWNLOAD_DELAY = 1
 
+# Proxy rotation settings
+PROXY_ROTATION_ENABLED = os.getenv('PROXY_ROTATION_ENABLED', 'False').lower() == 'true'
+PROXY_LIST = os.getenv('PROXY_LIST')  # Comma-separated list: http://host1:port,http://host2:port
+PROXY_FILE = os.getenv('PROXY_FILE', 'proxies.txt')  # File with one proxy per line
+
 # Disable cookies (enabled by default)
 #COOKIES_ENABLED = False
 
@@ -49,10 +54,19 @@ DOWNLOAD_DELAY = 1
 
 
 
-# додаю свій мідлвар який скіпає скрапінг вакансій урл яких вже є в бд
+# Proxy rotation middleware - runs before other middlewares
+# Enable by setting PROXY_ROTATION_ENABLED=true in environment
 DOWNLOADER_MIDDLEWARES = {
+    # додаю свій мідлвар який скіпає скрапінг вакансій урл яких вже є в бд
     "scrap_vac.middlewares.SkipExistingUrlsMiddleware": 543,
 }
+
+# Add ProxyRotationMiddleware to the beginning if enabled
+if PROXY_ROTATION_ENABLED:
+    DOWNLOADER_MIDDLEWARES = {
+        "scrap_vac.middlewares.ProxyRotationMiddleware": 350,  # Before other middlewares
+        **DOWNLOADER_MIDDLEWARES
+    }
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html

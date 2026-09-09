@@ -1,0 +1,15 @@
+# Example proxy configuration file
+# One proxy per line
+# Supported formats:
+#   host:port
+#   http://host:port
+#   https://host:port
+#   http://username:password@host:port
+#   socks5://host:port
+
+# Example entries:
+# proxy1.example.com:8080
+# http://proxy2.example.com:3128
+# https://proxy3.example.com:8080
+# http://user:pass@proxy4.example.com:8080
+# socks5://proxy5.example.com:1080

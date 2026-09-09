@@ -9,6 +9,11 @@ from scrapy import signals
 from itemadapter import ItemAdapter
 from scrapy.exceptions import IgnoreRequest
 
+import os
+import random
+import logging
+from scrapy.exceptions import NotConfigured
+
 
 class ScrapVacSpiderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
@@ -110,3 +115,83 @@ class SkipExistingUrlsMiddleware:
         if request.url in existing_urls:
             seen_existing_urls.add(request.url)
             raise IgnoreRequest(f"URL already exists: {request.url}")
+
+
+class ProxyRotationMiddleware:
+    """Middleware for rotating proxies to avoid IP blocking and rate limiting."""
+
+    def __init__(self, settings):
+        self.enabled = settings.getbool('PROXY_ROTATION_ENABLED', False)
+        self.logger = logging.getLogger(__name__)
+
+        if not self.enabled:
+            raise NotConfigured("Proxy rotation is disabled")
+
+        # Load proxies from environment variable or file
+        proxy_list = settings.get('PROXY_LIST')
+        if proxy_list:
+            self.proxies = [p.strip() for p in proxy_list.split(',') if p.strip()]
+        else:
+            proxy_file = settings.get('PROXY_FILE', 'proxies.txt')
+            try:
+                with open(proxy_file, 'r') as f:
+                    self.proxies = [line.strip() for line in f if line.strip()]
+            except FileNotFoundError:
+                self.logger.warning(f"Proxy file {proxy_file} not found")
+                self.proxies = []
+
+        # Validate proxy format (basic check)
+        self.proxies = [p for p in self.proxies if self._is_valid_proxy_format(p)]
+
+        if not self.proxies:
+            raise NotConfigured("No valid proxies configured for rotation")
+
+        self.logger.info(f"Proxy rotation enabled with {len(self.proxies)} proxies")
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(crawler.settings)
+
+    def _is_valid_proxy_format(self, proxy):
+        """Basic validation of proxy format.
+        Supports formats like:
+        - host:port
+        - http://host:port
+        - https://host:port
+        - http://user:pass@host:port
+        - socks5://host:port
+        """
+        if not proxy or not isinstance(proxy, str):
+            return False
+
+        # Must contain a colon for port separation
+        if ':' not in proxy:
+            return False
+
+        # Basic check - at least host and port parts
+        parts = proxy.split(':')
+        if len(parts) < 2:
+            return False
+
+        # Host part should not be empty
+        host_part = parts[0]
+        # Remove protocol prefix if present
+        if '://' in host_part:
+            host_part = host_part.split('://')[-1]
+        if '@' in host_part:  # Handle user:pass@host format
+            host_part = host_part.split('@')[-1]
+
+        return len(host_part) > 0 and len(parts[-1]) > 0
+
+    def process_request(self, request, spider):
+        # Skip if request already has proxy set (e.g., from Playwright)
+        if 'proxy' in request.meta:
+            return None
+
+        # Select random proxy
+        proxy = random.choice(self.proxies)
+        request.meta['proxy'] = proxy
+
+        # Log proxy usage at debug level to avoid excessive logging
+        self.logger.debug(f"Using proxy: {proxy} for {request.url}")
+        return None
