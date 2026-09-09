@@ -31,10 +31,19 @@ LOGGING_CONFIG = {
             "formatter": "render_standard",    # Використовуємо твій форматер вище
             "level": "DEBUG",                  # Мінімальний рівень, який пропускає цей handler
         },
+        "file": {
+            "class": "logging.handlers.TimedRotatingFileHandler",  # Запис у файл з ротацією
+            "formatter": "render_standard",    # Використовуємо твій форматер вище
+            "level": "DEBUG",                  # Мінімальний рівень, який пропускає цей handler
+            "filename": "logs/app.log",        # Шлях до файлу логів
+            "when": "midnight",                # Ротуємо о півночі кожного дня
+            "backupCount": 10,                 # Зберігаємо логи за останні 10 днів
+            "encoding": "utf8",                # Кодування файлу
+        },
     },
     "loggers": {
         "": {  # Корневий логер для всього проєкту
-            "handlers": ["console"],
+            "handlers": ["console", "file"],   # Тепер логи йдуть і в консоль, і у файл
             "level": LOG_LEVEL,
             "propagate": True,
         },
